@@ -1,0 +1,11 @@
+{
+  "domain": "apartment_lights_engine",
+  "name": "Apartment Lights Engine",
+  "documentation": "https://github.com/djkoza/apartment-lights-engine",
+  "issue_tracker": "https://github.com/djkoza/apartment-lights-engine/issues",
+  "version": "0.1.0",
+  "config_flow": true,
+  "codeowners": [],
+  "requirements": [],
+  "iot_class": "local_push"
+}

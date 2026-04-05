@@ -1,0 +1,14 @@
+{
+  "title": "Apartment Lights Engine",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Apartment Lights Engine",
+        "description": "Create the shared apartment lighting decision engine."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Only one instance of Apartment Lights Engine is allowed."
+    }
+  }
+}

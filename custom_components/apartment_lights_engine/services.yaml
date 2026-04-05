@@ -1,0 +1,33 @@
+evaluate_room:
+  name: Evaluate room
+  description: Evaluate one room light decision from a pure snapshot and execute one action plan.
+  fields:
+    room:
+      required: true
+      example: livingroom
+      selector:
+        select:
+          options:
+            - livingroom
+            - bedroom
+    cause:
+      required: true
+      example: motion_on
+      selector:
+        select:
+          options:
+            - main_on
+            - main_off
+            - lux_bright_stable
+            - lux_dark_stable
+            - lux_changed
+            - motion_on
+            - motion_off
+            - door_open
+            - auto_toggle
+            - thresholds_changed
+    dry_run:
+      required: false
+      default: false
+      selector:
+        boolean:
