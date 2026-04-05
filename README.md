@@ -11,8 +11,10 @@ This integration extracts room lighting rules into one reusable backend service:
 
 Current scope:
 
-- living room and bedroom room mappings are defined in
+- living room, bedroom and corridor room mappings are defined in
   [custom_components/apartment_lights_engine/rooms.py](custom_components/apartment_lights_engine/rooms.py)
+- each room mapping may also define an optional shutter/cover entity that lets
+  `main_off` switch to ambient immediately when the shutter is closed
 - service response includes the snapshot and matched decision
 - intended to replace large YAML `choose` automations with thin wrappers
 

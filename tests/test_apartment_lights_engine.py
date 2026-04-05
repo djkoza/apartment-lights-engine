@@ -22,6 +22,7 @@ from custom_components.apartment_lights_engine.engine import decide_light_action
 from custom_components.apartment_lights_engine.model import DecisionSnapshot, LightAction
 from custom_components.apartment_lights_engine.rooms import (
     LEGACY_DEFAULT_ROOM_CONFIGS,
+    RoomConfig,
     overlapping_main_and_ambient_entities,
     room_configs_from_storage,
     room_configs_to_storage,
@@ -91,6 +92,19 @@ class ApartmentLightsEngineTests(unittest.TestCase):
             snapshot(cause=CAUSE_LUX_BRIGHT_STABLE, ambient_on=True, lux=150.0)
         )
         self.assertEqual(result.actions, (LightAction.TURN_AMBIENT_OFF,))
+
+    def test_manual_main_off_with_closed_shutter_turns_on_ambient_before_lux_drops(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_MAIN_OFF,
+                main_on=False,
+                ambient_on=False,
+                presence_on=True,
+                lux=100.0,
+                shutter_closed=True,
+            )
+        )
+        self.assertEqual(result.actions, (LightAction.TURN_AMBIENT_ON,))
 
     def test_recent_main_off_plus_lux_drop_restores_ambient(self) -> None:
         result = decide_light_action(
@@ -284,6 +298,42 @@ class ApartmentLightsEngineTests(unittest.TestCase):
             restored["bedroom"].main_action_entities,
             ("light.raspberry_pi_light_controller_main_bedroom_light",),
         )
+        self.assertEqual(
+            restored["corridor"].neighbor_main_entities,
+            (
+                "light.raspberry_pi_light_controller_main_bedroom_light",
+                "light.raspberry_pi_light_controller_main_kitchen_light",
+                "light.raspberry_pi_light_controller_main_livingroom_light",
+            ),
+        )
+        self.assertIsNone(restored["livingroom"].shutter_entity)
+
+    def test_room_config_roundtrip_preserves_optional_shutter_entity(self) -> None:
+        raw = room_configs_to_storage(
+            {
+                "bedroom": RoomConfig(
+                    room="bedroom",
+                    auto_enabled_entity="input_boolean.auto_lights_bedroom",
+                    presence_entity="binary_sensor.bedroom_motion_presence",
+                    door_entity="binary_sensor.bedroom_door_contact_contact",
+                    lux_entity="sensor.bedroom_motion_illuminance",
+                    lux_on_threshold_entity="input_number.bedroom_lux_on_threshold",
+                    lux_off_threshold_entity="input_number.bedroom_lux_off_threshold",
+                    main_state_entity="light.main",
+                    main_action_entities=("light.main",),
+                    ambient_entity="light.ambient",
+                    room_off_entity="light.room",
+                    neighbor_main_entities=("light.neighbor",),
+                    restore_timer_entity="timer.restore",
+                    restore_minutes_entity="input_number.restore",
+                    presence_grace_timer_entity="timer.grace",
+                    presence_grace_seconds_entity="input_number.grace",
+                    shutter_entity="cover.bedroom_shutter",
+                )
+            }
+        )
+        restored = room_configs_from_storage(raw)
+        self.assertEqual(restored["bedroom"].shutter_entity, "cover.bedroom_shutter")
 
     def test_room_configs_from_empty_storage(self) -> None:
         self.assertEqual(room_configs_from_storage(None), {})

@@ -205,6 +205,7 @@ def _build_snapshot(hass: HomeAssistant, room: RoomConfig, cause: str) -> Decisi
         presence_grace_window_active=_state(hass, room.presence_grace_timer_entity) == "active",
         seconds_since_main_off=seconds_since_main_off,
         main_off_window_seconds=room.main_off_window_seconds,
+        shutter_closed=room.shutter_entity is not None and _state(hass, room.shutter_entity) == "closed",
     )
 
 

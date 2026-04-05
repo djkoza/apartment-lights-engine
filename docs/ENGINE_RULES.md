@@ -60,6 +60,7 @@ Each decision is based on:
 - `presence_grace_window_active`
 - `seconds_since_main_off`
 - `main_off_window_seconds`
+- `shutter_closed` optional
 - `cause`
 
 ## Rule Priority
@@ -71,6 +72,7 @@ The engine evaluates rules in this exact order.
 4. `motion_off` turns room off and starts restore window if `main_on`
 5. `main_on` syncs the cluster and clears restore timer when needed
 6. `main_off` while occupied and dark turns on ambient
+   or turns on ambient immediately when an optional configured shutter is closed
 7. `presence_grace_finished` turns room off if presence never arrived
 8. `ambient_on + bright` turns ambient off
 9. `restore_window_active + motion_on/door_open + dark` restores `main`
@@ -88,7 +90,7 @@ The engine evaluates rules in this exact order.
 | `motion_off` | `room_on and main_off` | `turn_room_off` |
 | `main_on` | `ambient_on` | `turn_main_on + turn_ambient_off` |
 | `main_on` | `restore_window_active` | `turn_main_on + clear_restore_timer` |
-| `main_off` | `presence_on and dark and ambient_off` | `turn_ambient_on` |
+| `main_off` | `presence_on and ambient_off and (dark or shutter_closed)` | `turn_ambient_on` |
 | `presence_grace_finished` | `room_on and not presence_on` | `turn_room_off`, and also `cancel_restore_window` if old restore is still active |
 | `lux_bright_stable` | `ambient_on` | `turn_ambient_off` |
 | `thresholds_changed` | `ambient_on and bright` | `turn_ambient_off` |
@@ -108,6 +110,12 @@ The first salon cutover exposed a concrete bug:
 
 The engine now requires both `main_off` and `ambient_off` before the generic
 entry rule can turn anything on.
+
+## Thin Wrapper Note
+If a room config defines an optional shutter entity, the room wrapper should
+still call `evaluate_room` for `main_off` even before lux drops below the dark
+threshold. Otherwise the engine cannot use the immediate `shutter_closed`
+fallback and ambient will still wait for the next `lux_changed`.
 
 ## Room-Specific Configuration
 `livingroom`
@@ -130,6 +138,18 @@ entry rule can turn anything on.
   - contains only `light.bedroom_wled_main`
 - `neighbor_main_entities`:
   - `light.raspberry_pi_light_controller_main_corridor_light`
+
+`corridor`
+
+- `main_state_entity`: `light.raspberry_pi_light_controller_main_corridor_light`
+- `main_action_entities`:
+  - `light.raspberry_pi_light_controller_main_corridor_light`
+- `ambient_entity`: `light.lights_group_corridor_ambient`
+  - contains only `light.corridor_wled_main`
+- `neighbor_main_entities`:
+  - `light.raspberry_pi_light_controller_main_bedroom_light`
+  - `light.raspberry_pi_light_controller_main_kitchen_light`
+  - `light.raspberry_pi_light_controller_main_livingroom_light`
 
 ## Technical Reason For The Refactor
 The failed salon run on `2026-04-05` showed the defect clearly:

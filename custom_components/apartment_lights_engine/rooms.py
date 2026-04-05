@@ -22,6 +22,7 @@ from .const import (
     CONF_RESTORE_MINUTES_ENTITY,
     CONF_RESTORE_TIMER_ENTITY,
     CONF_ROOM_OFF_ENTITY,
+    CONF_SHUTTER_ENTITY,
 )
 
 
@@ -46,6 +47,7 @@ class RoomConfig:
     presence_grace_timer_entity: str
     presence_grace_seconds_entity: str
     main_off_window_seconds: float = 15.0
+    shutter_entity: str | None = None
 
 
 def overlapping_main_and_ambient_entities(
@@ -93,6 +95,7 @@ def room_config_from_dict(room_id: str, raw: dict[str, Any]) -> RoomConfig:
         presence_grace_timer_entity=raw[CONF_PRESENCE_GRACE_TIMER_ENTITY],
         presence_grace_seconds_entity=raw[CONF_PRESENCE_GRACE_SECONDS_ENTITY],
         main_off_window_seconds=float(raw.get(CONF_MAIN_OFF_WINDOW_SECONDS, 15.0)),
+        shutter_entity=raw.get(CONF_SHUTTER_ENTITY) or None,
     )
 
 
@@ -156,5 +159,27 @@ LEGACY_DEFAULT_ROOM_CONFIGS: dict[str, RoomConfig] = {
         restore_minutes_entity="input_number.bedroom_main_restore_window_minutes",
         presence_grace_timer_entity="timer.bedroom_presence_grace_window",
         presence_grace_seconds_entity="input_number.bedroom_presence_grace_seconds",
+    ),
+    "corridor": RoomConfig(
+        room="corridor",
+        auto_enabled_entity="input_boolean.auto_lights_corridor",
+        presence_entity="binary_sensor.corridor_motion_presence",
+        door_entity="binary_sensor.entrance_door_contact_contact",
+        lux_entity="sensor.corridor_motion_illuminance",
+        lux_on_threshold_entity="input_number.corridor_lux_on_threshold",
+        lux_off_threshold_entity="input_number.corridor_lux_off_threshold",
+        main_state_entity="light.raspberry_pi_light_controller_main_corridor_light",
+        main_action_entities=("light.raspberry_pi_light_controller_main_corridor_light",),
+        ambient_entity="light.lights_group_corridor_ambient",
+        room_off_entity="light.lights_group_corridor_all",
+        neighbor_main_entities=(
+            "light.raspberry_pi_light_controller_main_bedroom_light",
+            "light.raspberry_pi_light_controller_main_kitchen_light",
+            "light.raspberry_pi_light_controller_main_livingroom_light",
+        ),
+        restore_timer_entity="timer.corridor_main_restore_window",
+        restore_minutes_entity="input_number.corridor_main_restore_window_minutes",
+        presence_grace_timer_entity="timer.corridor_presence_grace_window",
+        presence_grace_seconds_entity="input_number.corridor_presence_grace_seconds",
     ),
 }

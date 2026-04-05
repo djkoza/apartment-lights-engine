@@ -49,6 +49,7 @@
           "auto_enabled_entity": "Przełącznik auto świateł",
           "presence_entity": "Czujnik obecności",
           "door_entity": "Czujnik drzwi/kontaktu",
+          "shutter_entity": "Encja rolety (opcjonalna)",
           "lux_entity": "Czujnik natężenia światła",
           "lux_on_threshold_entity": "Helper progu włączenia lux",
           "lux_off_threshold_entity": "Helper progu wyłączenia lux",

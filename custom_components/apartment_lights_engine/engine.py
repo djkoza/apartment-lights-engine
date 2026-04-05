@@ -161,8 +161,13 @@ def decide_light_action(snapshot: DecisionSnapshot) -> DecisionResult:
         return _main_on("manual_main_on_syncs_cluster")
 
     if snapshot.cause == CAUSE_MAIN_OFF:
-        if snapshot.presence_on and not snapshot.ambient_on and dark:
-            return _ambient_on("manual_main_off_while_occupied_switches_to_ambient")
+        if snapshot.presence_on and not snapshot.ambient_on:
+            if dark:
+                return _ambient_on("manual_main_off_while_occupied_switches_to_ambient")
+            if snapshot.shutter_closed:
+                return _ambient_on(
+                    "manual_main_off_with_closed_shutter_switches_to_ambient_without_waiting_for_lux"
+                )
         return _noop("main_off_without_dark_occupied_fallback")
 
     if snapshot.cause == CAUSE_PRESENCE_GRACE_FINISHED:
