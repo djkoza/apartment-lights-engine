@@ -11,13 +11,19 @@ from .const import (
     ATTR_DRY_RUN,
     ATTR_ROOM,
     CAUSES,
+    CONF_ROOMS,
     DOMAIN,
     EVENT_DECISION,
     SERVICE_EVALUATE_ROOM,
 )
 from .engine import decide_light_action
 from .model import DecisionSnapshot, LightAction
-from .rooms import ROOM_CONFIGS, RoomConfig
+from .rooms import (
+    LEGACY_DEFAULT_ROOM_CONFIGS,
+    RoomConfig,
+    room_configs_from_storage,
+    room_configs_to_storage,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -36,17 +42,41 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry) -> bool:
     """Set up the apartment lights engine from a config entry."""
     hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN][entry.entry_id] = {
+        "rooms": _room_configs_from_entry(entry),
+    }
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     await _async_register_services(hass)
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry) -> bool:
     """Unload the apartment lights engine config entry."""
+    hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
     entries = hass.config_entries.async_entries(DOMAIN)
     if len(entries) <= 1 and hass.services.has_service(DOMAIN, SERVICE_EVALUATE_ROOM):
         hass.services.async_remove(DOMAIN, SERVICE_EVALUATE_ROOM)
         hass.data.get(DOMAIN, {}).pop("service_registered", None)
     return True
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry) -> bool:
+    """Migrate older config entries to config-entry-backed room storage."""
+    if entry.version >= 2:
+        return True
+
+    data = dict(entry.data)
+    if CONF_ROOMS not in data and CONF_ROOMS not in entry.options:
+        data[CONF_ROOMS] = room_configs_to_storage(LEGACY_DEFAULT_ROOM_CONFIGS)
+
+    hass.config_entries.async_update_entry(entry, data=data, version=2)
+    _LOGGER.info("Migrated %s config entry to version 2", DOMAIN)
+    return True
+
+
+async def _async_update_listener(hass: HomeAssistant, entry) -> None:
+    """Reload the config entry after options changes."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def _async_register_services(hass: HomeAssistant) -> None:
@@ -59,7 +89,7 @@ async def _async_register_services(hass: HomeAssistant) -> None:
 
     service_evaluate_schema = vol.Schema(
         {
-            vol.Required(ATTR_ROOM): vol.In(sorted(ROOM_CONFIGS)),
+            vol.Required(ATTR_ROOM): cv.string,
             vol.Required(ATTR_CAUSE): vol.In(CAUSES),
             vol.Optional(ATTR_DRY_RUN, default=False): cv.boolean,
         }
@@ -71,12 +101,21 @@ async def _async_register_services(hass: HomeAssistant) -> None:
         from homeassistant.core import ServiceCall
 
         SupportsResponse = None
+    try:
+        from homeassistant.exceptions import ServiceValidationError
+    except ImportError:  # pragma: no cover - compatibility path
+        ServiceValidationError = ValueError
 
     async def async_handle_evaluate(call: ServiceCall) -> dict[str, object] | None:
         room = call.data[ATTR_ROOM]
         cause = call.data[ATTR_CAUSE]
         dry_run = call.data[ATTR_DRY_RUN]
-        room_config = ROOM_CONFIGS[room]
+        room_configs = _active_room_configs(hass)
+        if room not in room_configs:
+            raise ServiceValidationError(
+                f"Unknown room '{room}'. Configure it in Apartment Lights Engine options first."
+            )
+        room_config = room_configs[room]
         snapshot = _build_snapshot(hass, room_config, cause)
         decision = decide_light_action(snapshot)
 
@@ -124,6 +163,23 @@ async def _async_register_services(hass: HomeAssistant) -> None:
         **register_kwargs,
     )
     hass.data[DOMAIN]["service_registered"] = True
+
+
+def _room_configs_from_entry(entry) -> dict[str, RoomConfig]:
+    """Read configured rooms from one config entry."""
+    raw = entry.options.get(CONF_ROOMS)
+    if raw is None:
+        raw = entry.data.get(CONF_ROOMS)
+    rooms = room_configs_from_storage(raw)
+    return rooms
+
+
+def _active_room_configs(hass: HomeAssistant) -> dict[str, RoomConfig]:
+    """Return room configs from the active singleton config entry."""
+    for entry_data in hass.data.get(DOMAIN, {}).values():
+        if isinstance(entry_data, dict) and "rooms" in entry_data:
+            return entry_data["rooms"]
+    return {}
 
 
 def _build_snapshot(hass: HomeAssistant, room: RoomConfig, cause: str) -> DecisionSnapshot:

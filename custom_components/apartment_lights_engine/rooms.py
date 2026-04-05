@@ -1,8 +1,28 @@
-"""Static room configuration for the apartment lights engine."""
+"""Room configuration helpers for the apartment lights engine."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from typing import Any
+
+from .const import (
+    CONF_AMBIENT_ENTITY,
+    CONF_AUTO_ENABLED_ENTITY,
+    CONF_DOOR_ENTITY,
+    CONF_LUX_ENTITY,
+    CONF_LUX_OFF_THRESHOLD_ENTITY,
+    CONF_LUX_ON_THRESHOLD_ENTITY,
+    CONF_MAIN_ACTION_ENTITIES,
+    CONF_MAIN_OFF_WINDOW_SECONDS,
+    CONF_MAIN_STATE_ENTITY,
+    CONF_NEIGHBOR_MAIN_ENTITIES,
+    CONF_PRESENCE_ENTITY,
+    CONF_PRESENCE_GRACE_SECONDS_ENTITY,
+    CONF_PRESENCE_GRACE_TIMER_ENTITY,
+    CONF_RESTORE_MINUTES_ENTITY,
+    CONF_RESTORE_TIMER_ENTITY,
+    CONF_ROOM_OFF_ENTITY,
+)
 
 
 @dataclass(slots=True, frozen=True)
@@ -12,7 +32,7 @@ class RoomConfig:
     room: str
     auto_enabled_entity: str
     presence_entity: str
-    door_entity: str
+    door_entity: str | None
     lux_entity: str
     lux_on_threshold_entity: str
     lux_off_threshold_entity: str
@@ -28,7 +48,56 @@ class RoomConfig:
     main_off_window_seconds: float = 15.0
 
 
-ROOM_CONFIGS: dict[str, RoomConfig] = {
+def room_config_to_dict(room: RoomConfig) -> dict[str, Any]:
+    """Serialize one room config for config entry storage."""
+    data = asdict(room)
+    data[CONF_MAIN_ACTION_ENTITIES] = list(room.main_action_entities)
+    data[CONF_NEIGHBOR_MAIN_ENTITIES] = list(room.neighbor_main_entities)
+    return data
+
+
+def room_config_from_dict(room_id: str, raw: dict[str, Any]) -> RoomConfig:
+    """Deserialize one room config from config entry storage."""
+    return RoomConfig(
+        room=room_id,
+        auto_enabled_entity=raw[CONF_AUTO_ENABLED_ENTITY],
+        presence_entity=raw[CONF_PRESENCE_ENTITY],
+        door_entity=raw.get(CONF_DOOR_ENTITY) or None,
+        lux_entity=raw[CONF_LUX_ENTITY],
+        lux_on_threshold_entity=raw[CONF_LUX_ON_THRESHOLD_ENTITY],
+        lux_off_threshold_entity=raw[CONF_LUX_OFF_THRESHOLD_ENTITY],
+        main_state_entity=raw[CONF_MAIN_STATE_ENTITY],
+        main_action_entities=tuple(raw.get(CONF_MAIN_ACTION_ENTITIES, [])),
+        ambient_entity=raw[CONF_AMBIENT_ENTITY],
+        room_off_entity=raw[CONF_ROOM_OFF_ENTITY],
+        neighbor_main_entities=tuple(raw.get(CONF_NEIGHBOR_MAIN_ENTITIES, [])),
+        restore_timer_entity=raw[CONF_RESTORE_TIMER_ENTITY],
+        restore_minutes_entity=raw[CONF_RESTORE_MINUTES_ENTITY],
+        presence_grace_timer_entity=raw[CONF_PRESENCE_GRACE_TIMER_ENTITY],
+        presence_grace_seconds_entity=raw[CONF_PRESENCE_GRACE_SECONDS_ENTITY],
+        main_off_window_seconds=float(raw.get(CONF_MAIN_OFF_WINDOW_SECONDS, 15.0)),
+    )
+
+
+def room_configs_to_storage(rooms: dict[str, RoomConfig]) -> dict[str, dict[str, Any]]:
+    """Serialize room configs for config entries."""
+    return {room_id: room_config_to_dict(cfg) for room_id, cfg in rooms.items()}
+
+
+def room_configs_from_storage(raw: dict[str, Any] | None) -> dict[str, RoomConfig]:
+    """Deserialize room configs from config entries."""
+    if not raw:
+        return {}
+    return {
+        room_id: room_config_from_dict(room_id, room_raw)
+        for room_id, room_raw in raw.items()
+        if isinstance(room_raw, dict)
+    }
+
+
+# Legacy bootstrap defaults used only to migrate existing installs that were created
+# before room mappings were stored in the config entry.
+LEGACY_DEFAULT_ROOM_CONFIGS: dict[str, RoomConfig] = {
     "livingroom": RoomConfig(
         room="livingroom",
         auto_enabled_entity="input_boolean.auto_lights_livingroom",

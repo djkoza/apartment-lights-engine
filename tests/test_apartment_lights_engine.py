@@ -20,6 +20,11 @@ from custom_components.apartment_lights_engine.const import (
 )
 from custom_components.apartment_lights_engine.engine import decide_light_action
 from custom_components.apartment_lights_engine.model import DecisionSnapshot, LightAction
+from custom_components.apartment_lights_engine.rooms import (
+    LEGACY_DEFAULT_ROOM_CONFIGS,
+    room_configs_from_storage,
+    room_configs_to_storage,
+)
 
 
 def snapshot(**overrides: object) -> DecisionSnapshot:
@@ -265,6 +270,19 @@ class ApartmentLightsEngineTests(unittest.TestCase):
         )
         self.assertEqual(result.actions, ())
         self.assertEqual(result.reason, "invalid_threshold_order")
+
+    def test_room_configs_roundtrip_storage(self) -> None:
+        raw = room_configs_to_storage(LEGACY_DEFAULT_ROOM_CONFIGS)
+        restored = room_configs_from_storage(raw)
+        self.assertEqual(set(restored), set(LEGACY_DEFAULT_ROOM_CONFIGS))
+        self.assertEqual(
+            restored["livingroom"].presence_grace_timer_entity,
+            "timer.livingroom_presence_grace_window",
+        )
+
+    def test_room_configs_from_empty_storage(self) -> None:
+        self.assertEqual(room_configs_from_storage(None), {})
+        self.assertEqual(room_configs_from_storage({}), {})
 
 
 if __name__ == "__main__":

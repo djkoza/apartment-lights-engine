@@ -10,5 +10,39 @@
     "abort": {
       "single_instance_allowed": "Only one instance of Apartment Lights Engine is allowed."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Manage rooms",
+        "menu_options": {
+          "add_room": "Add room",
+          "edit_room": "Edit room",
+          "remove_room": "Remove room"
+        }
+      },
+      "add_room_id": {
+        "title": "Add room",
+        "description": "Choose a stable room id such as `livingroom`, `bedroom`, `kitchen` or `corridor`."
+      },
+      "edit_room": {
+        "title": "Edit room"
+      },
+      "remove_room": {
+        "title": "Remove room"
+      },
+      "room_details": {
+        "title": "Room mapping",
+        "description": "Configure all entity mappings for `{room_id}`."
+      }
+    },
+    "error": {
+      "invalid_room_id": "Room id is invalid.",
+      "room_already_exists": "This room id already exists.",
+      "required": "This field is required."
+    },
+    "abort": {
+      "no_rooms_configured": "No rooms are configured yet."
+    }
   }
 }

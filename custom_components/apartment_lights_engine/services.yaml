@@ -6,10 +6,7 @@ evaluate_room:
       required: true
       example: livingroom
       selector:
-        select:
-          options:
-            - livingroom
-            - bedroom
+        text:
     cause:
       required: true
       example: motion_on
