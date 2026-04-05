@@ -22,10 +22,23 @@ def _noop(reason: str) -> DecisionResult:
     return DecisionResult(decision="noop", reason=reason, actions=())
 
 
-def _main_on(reason: str, *, cancel_restore: bool = False) -> DecisionResult:
+def _main_on(
+    reason: str,
+    *,
+    turn_off_ambient: bool = False,
+    cancel_restore: bool = False,
+    start_door_grace: bool = False,
+    cancel_door_grace: bool = False,
+) -> DecisionResult:
     actions = [LightAction.TURN_MAIN_ON]
+    if turn_off_ambient:
+        actions.append(LightAction.TURN_AMBIENT_OFF)
     if cancel_restore:
         actions.append(LightAction.CANCEL_RESTORE_WINDOW)
+    if start_door_grace:
+        actions.append(LightAction.START_DOOR_GRACE_WINDOW)
+    if cancel_door_grace:
+        actions.append(LightAction.CANCEL_DOOR_GRACE_WINDOW)
     return DecisionResult(decision="turn_main_on", reason=reason, actions=tuple(actions))
 
 
@@ -117,11 +130,20 @@ def decide_light_action(snapshot: DecisionSnapshot) -> DecisionResult:
         return _noop("presence_lost_but_room_already_off")
 
     if snapshot.cause == CAUSE_MAIN_ON:
-        if snapshot.ambient_on:
-            return DecisionResult(
-                decision="sync_main_and_turn_off_ambient",
-                reason="manual_main_on_syncs_cluster_and_turns_off_ambient",
-                actions=(LightAction.TURN_MAIN_ON, LightAction.TURN_AMBIENT_OFF),
+        if snapshot.ambient_on or snapshot.restore_window_active or snapshot.door_grace_window_active:
+            if snapshot.ambient_on and (
+                snapshot.restore_window_active or snapshot.door_grace_window_active
+            ):
+                reason = "manual_main_on_syncs_cluster_turns_off_ambient_and_clears_pending_timers"
+            elif snapshot.ambient_on:
+                reason = "manual_main_on_syncs_cluster_and_turns_off_ambient"
+            else:
+                reason = "manual_main_on_syncs_cluster_and_clears_pending_timers"
+            return _main_on(
+                reason,
+                turn_off_ambient=snapshot.ambient_on,
+                cancel_restore=snapshot.restore_window_active,
+                cancel_door_grace=snapshot.door_grace_window_active,
             )
         return _main_on("manual_main_on_syncs_cluster")
 
@@ -147,7 +169,11 @@ def decide_light_action(snapshot: DecisionSnapshot) -> DecisionResult:
         and not snapshot.main_on
         and dark
     ):
-        return _main_on("quick_return_restores_main", cancel_restore=True)
+        return _main_on(
+            "quick_return_restores_main",
+            cancel_restore=True,
+            start_door_grace=snapshot.cause == CAUSE_DOOR_OPEN and not snapshot.presence_on,
+        )
 
     if (
         snapshot.cause == CAUSE_LUX_CHANGED

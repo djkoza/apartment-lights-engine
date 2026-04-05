@@ -54,6 +54,26 @@ class ApartmentLightsEngineTests(unittest.TestCase):
             (LightAction.TURN_MAIN_ON, LightAction.TURN_AMBIENT_OFF),
         )
 
+    def test_manual_main_on_clears_pending_restore_and_door_grace(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_MAIN_ON,
+                main_on=True,
+                ambient_on=True,
+                restore_window_active=True,
+                door_grace_window_active=True,
+            )
+        )
+        self.assertEqual(
+            result.actions,
+            (
+                LightAction.TURN_MAIN_ON,
+                LightAction.TURN_AMBIENT_OFF,
+                LightAction.CANCEL_RESTORE_WINDOW,
+                LightAction.CANCEL_DOOR_GRACE_WINDOW,
+            ),
+        )
+
     def test_manual_main_off_while_occupied_goes_to_ambient_when_dark(self) -> None:
         result = decide_light_action(
             snapshot(cause=CAUSE_MAIN_OFF, main_on=False, ambient_on=False, presence_on=True, lux=20.0)
@@ -129,6 +149,27 @@ class ApartmentLightsEngineTests(unittest.TestCase):
         self.assertEqual(
             result.actions,
             (LightAction.TURN_MAIN_ON, LightAction.CANCEL_RESTORE_WINDOW),
+        )
+
+    def test_quick_return_from_door_open_without_presence_starts_door_grace(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_DOOR_OPEN,
+                presence_on=False,
+                lux=33.0,
+                main_on=False,
+                ambient_on=False,
+                neighbor_main_on=False,
+                restore_window_active=True,
+            )
+        )
+        self.assertEqual(
+            result.actions,
+            (
+                LightAction.TURN_MAIN_ON,
+                LightAction.CANCEL_RESTORE_WINDOW,
+                LightAction.START_DOOR_GRACE_WINDOW,
+            ),
         )
 
     def test_motion_on_does_not_start_ambient_if_main_is_already_on(self) -> None:
