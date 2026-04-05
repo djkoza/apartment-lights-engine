@@ -29,12 +29,13 @@ Included:
 - `motion_on`
 - `motion_off`
 - `door_open`
-- `door_grace_finished`
+- `room_on`
+- `presence_grace_finished`
 - `auto_toggle`
 - `thresholds_changed`
 - quick return after no-presence off
 - no-presence room off inside the engine
-- door-open grace window when presence does not confirm entry
+- presence grace window when a room turns on without confirmed occupancy
 
 Not included in v2:
 
@@ -56,7 +57,7 @@ Each decision is based on:
 - `room_on`
 - `neighbor_main_on`
 - `restore_window_active`
-- `door_grace_window_active`
+- `presence_grace_window_active`
 - `seconds_since_main_off`
 - `main_off_window_seconds`
 - `cause`
@@ -65,37 +66,38 @@ Each decision is based on:
 The engine evaluates rules in this exact order.
 
 1. `auto_disabled`
-2. `motion_on` cancels `door_grace_window` after entry confirmation
-3. `motion_off` turns room off and starts restore window if `main_on`
-4. `main_on` syncs the cluster and clears pending timers when needed
-5. `main_off` while occupied and dark turns on ambient
-6. `door_grace_finished` turns room off if presence never arrived
-7. `ambient_on + bright` turns ambient off
-8. `restore_window_active + motion_on/door_open + dark` restores `main`
-9. `lux_changed` shortly after main-off restores ambient
-10. `lux_dark_stable` or dark `thresholds_changed` chooses `main` vs `ambient`
-11. dark `motion_on/door_open/auto_toggle/thresholds_changed` chooses `main` vs `ambient` only if both are currently off
-12. otherwise `noop`
+2. `motion_on` cancels `presence_grace_window` after occupancy confirmation
+3. `room_on` starts `presence_grace_window` when the room turned on without confirmed occupancy
+4. `motion_off` turns room off and starts restore window if `main_on`
+5. `main_on` syncs the cluster and clears restore timer when needed
+6. `main_off` while occupied and dark turns on ambient
+7. `presence_grace_finished` turns room off if presence never arrived
+8. `ambient_on + bright` turns ambient off
+9. `restore_window_active + motion_on/door_open + dark` restores `main`
+10. `lux_changed` shortly after main-off restores ambient
+11. `lux_dark_stable` or dark `thresholds_changed` chooses `main` vs `ambient`
+12. dark `motion_on/door_open/auto_toggle/thresholds_changed` chooses `main` vs `ambient` only if both are currently off
+13. otherwise `noop`
 
 ## Decision Table
 | Cause | Required state | Decision |
 | --- | --- | --- |
-| `motion_on` | `door_grace_window_active and room_on` | `cancel_door_grace_window` |
+| `motion_on` | `presence_grace_window_active and room_on` | `cancel_presence_grace_window` |
+| `room_on` | `room_on and not presence_on and not presence_grace_window_active` | `start_presence_grace_window` |
 | `motion_off` | `main_on and room_on` | `start_restore_window + turn_room_off` |
 | `motion_off` | `room_on and main_off` | `turn_room_off` |
 | `main_on` | `ambient_on` | `turn_main_on + turn_ambient_off` |
-| `main_on` | `restore_window_active or door_grace_window_active` | `turn_main_on + clear_pending_timers` |
+| `main_on` | `restore_window_active` | `turn_main_on + clear_restore_timer` |
 | `main_off` | `presence_on and dark and ambient_off` | `turn_ambient_on` |
-| `door_grace_finished` | `room_on and not presence_on` | `turn_room_off` |
+| `presence_grace_finished` | `room_on and not presence_on` | `turn_room_off` |
 | `lux_bright_stable` | `ambient_on` | `turn_ambient_off` |
 | `thresholds_changed` | `ambient_on and bright` | `turn_ambient_off` |
 | `motion_on` | `restore_window_active and dark and main_off` | `turn_main_on + cancel_restore_window` |
-| `door_open` | `restore_window_active and dark and main_off and no presence` | `turn_main_on + cancel_restore_window + start_door_grace_window` |
+| `door_open` | `restore_window_active and dark and main_off` | `turn_main_on + cancel_restore_window` |
 | `lux_changed` | `presence_on and dark and main_off and ambient_off and recent_main_off` | `turn_ambient_on` |
 | `lux_dark_stable` | `presence_on and dark and main_off and ambient_off` | `turn_main_on` if neighbor main on, else `turn_ambient_on` |
 | `thresholds_changed` | `presence_on and dark and main_off and ambient_off` | `turn_main_on` if neighbor main on, else `turn_ambient_on` |
 | `motion_on`, `door_open`, `auto_toggle` | `dark and room demand present and main_off and ambient_off` | `turn_main_on` if neighbor main on, else `turn_ambient_on` |
-| `door_open` | `dark and no presence and main_off and ambient_off` | `turn_light_on + start_door_grace_window` |
 
 ## 2026-04-05 Regression Note
 The first salon cutover exposed a concrete bug:

@@ -24,7 +24,8 @@ evaluate_room:
             - motion_on
             - motion_off
             - door_open
-            - door_grace_finished
+            - room_on
+            - presence_grace_finished
             - auto_toggle
             - thresholds_changed
     dry_run:

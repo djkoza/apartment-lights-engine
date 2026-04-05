@@ -6,7 +6,6 @@ import unittest
 
 from custom_components.apartment_lights_engine.const import (
     CAUSE_AUTO_TOGGLE,
-    CAUSE_DOOR_GRACE_FINISHED,
     CAUSE_DOOR_OPEN,
     CAUSE_LUX_BRIGHT_STABLE,
     CAUSE_LUX_CHANGED,
@@ -15,6 +14,8 @@ from custom_components.apartment_lights_engine.const import (
     CAUSE_MAIN_ON,
     CAUSE_MOTION_OFF,
     CAUSE_MOTION_ON,
+    CAUSE_PRESENCE_GRACE_FINISHED,
+    CAUSE_ROOM_ON,
     CAUSE_THRESHOLDS_CHANGED,
 )
 from custom_components.apartment_lights_engine.engine import decide_light_action
@@ -36,7 +37,7 @@ def snapshot(**overrides: object) -> DecisionSnapshot:
         room_on=False,
         neighbor_main_on=False,
         restore_window_active=False,
-        door_grace_window_active=False,
+        presence_grace_window_active=False,
         seconds_since_main_off=999.0,
         main_off_window_seconds=15.0,
     )
@@ -54,14 +55,14 @@ class ApartmentLightsEngineTests(unittest.TestCase):
             (LightAction.TURN_MAIN_ON, LightAction.TURN_AMBIENT_OFF),
         )
 
-    def test_manual_main_on_clears_pending_restore_and_door_grace(self) -> None:
+    def test_manual_main_on_clears_pending_restore_but_not_presence_grace(self) -> None:
         result = decide_light_action(
             snapshot(
                 cause=CAUSE_MAIN_ON,
                 main_on=True,
                 ambient_on=True,
                 restore_window_active=True,
-                door_grace_window_active=True,
+                presence_grace_window_active=True,
             )
         )
         self.assertEqual(
@@ -70,7 +71,6 @@ class ApartmentLightsEngineTests(unittest.TestCase):
                 LightAction.TURN_MAIN_ON,
                 LightAction.TURN_AMBIENT_OFF,
                 LightAction.CANCEL_RESTORE_WINDOW,
-                LightAction.CANCEL_DOOR_GRACE_WINDOW,
             ),
         )
 
@@ -109,10 +109,7 @@ class ApartmentLightsEngineTests(unittest.TestCase):
         result = decide_light_action(
             snapshot(cause=CAUSE_DOOR_OPEN, presence_on=False, neighbor_main_on=False)
         )
-        self.assertEqual(
-            result.actions,
-            (LightAction.TURN_AMBIENT_ON, LightAction.START_DOOR_GRACE_WINDOW),
-        )
+        self.assertEqual(result.actions, (LightAction.TURN_AMBIENT_ON,))
 
     def test_threshold_change_dark_reuses_same_main_vs_ambient_logic(self) -> None:
         result = decide_light_action(
@@ -151,7 +148,7 @@ class ApartmentLightsEngineTests(unittest.TestCase):
             (LightAction.TURN_MAIN_ON, LightAction.CANCEL_RESTORE_WINDOW),
         )
 
-    def test_quick_return_from_door_open_without_presence_starts_door_grace(self) -> None:
+    def test_quick_return_from_door_open_without_presence_only_restores_main(self) -> None:
         result = decide_light_action(
             snapshot(
                 cause=CAUSE_DOOR_OPEN,
@@ -165,11 +162,7 @@ class ApartmentLightsEngineTests(unittest.TestCase):
         )
         self.assertEqual(
             result.actions,
-            (
-                LightAction.TURN_MAIN_ON,
-                LightAction.CANCEL_RESTORE_WINDOW,
-                LightAction.START_DOOR_GRACE_WINDOW,
-            ),
+            (LightAction.TURN_MAIN_ON, LightAction.CANCEL_RESTORE_WINDOW),
         )
 
     def test_motion_on_does_not_start_ambient_if_main_is_already_on(self) -> None:
@@ -187,22 +180,33 @@ class ApartmentLightsEngineTests(unittest.TestCase):
         )
         self.assertEqual(result.actions, ())
 
-    def test_motion_on_confirms_entry_and_cancels_door_grace(self) -> None:
+    def test_motion_on_confirms_presence_and_cancels_presence_grace(self) -> None:
         result = decide_light_action(
             snapshot(
                 cause=CAUSE_MOTION_ON,
                 presence_on=True,
                 room_on=True,
                 ambient_on=True,
-                door_grace_window_active=True,
+                presence_grace_window_active=True,
             )
         )
-        self.assertEqual(result.actions, (LightAction.CANCEL_DOOR_GRACE_WINDOW,))
+        self.assertEqual(result.actions, (LightAction.CANCEL_PRESENCE_GRACE_WINDOW,))
 
-    def test_door_grace_finished_turns_room_off_if_presence_never_arrived(self) -> None:
+    def test_room_on_without_presence_starts_presence_grace(self) -> None:
         result = decide_light_action(
             snapshot(
-                cause=CAUSE_DOOR_GRACE_FINISHED,
+                cause=CAUSE_ROOM_ON,
+                presence_on=False,
+                room_on=True,
+                ambient_on=True,
+            )
+        )
+        self.assertEqual(result.actions, (LightAction.START_PRESENCE_GRACE_WINDOW,))
+
+    def test_presence_grace_finished_turns_room_off_if_presence_never_arrived(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_PRESENCE_GRACE_FINISHED,
                 presence_on=False,
                 room_on=True,
                 ambient_on=True,

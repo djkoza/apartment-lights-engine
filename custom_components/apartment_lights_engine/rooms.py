@@ -23,8 +23,8 @@ class RoomConfig:
     neighbor_main_entities: tuple[str, ...]
     restore_timer_entity: str
     restore_minutes_entity: str
-    door_grace_timer_entity: str
-    door_grace_seconds_entity: str
+    presence_grace_timer_entity: str
+    presence_grace_seconds_entity: str
     main_off_window_seconds: float = 15.0
 
 
@@ -50,8 +50,8 @@ ROOM_CONFIGS: dict[str, RoomConfig] = {
         ),
         restore_timer_entity="timer.livingroom_main_restore_window",
         restore_minutes_entity="input_number.livingroom_main_restore_window_minutes",
-        door_grace_timer_entity="timer.livingroom_door_grace_window",
-        door_grace_seconds_entity="input_number.livingroom_door_grace_seconds",
+        presence_grace_timer_entity="timer.livingroom_presence_grace_window",
+        presence_grace_seconds_entity="input_number.livingroom_presence_grace_seconds",
     ),
     "bedroom": RoomConfig(
         room="bedroom",
@@ -71,7 +71,7 @@ ROOM_CONFIGS: dict[str, RoomConfig] = {
         neighbor_main_entities=("light.raspberry_pi_light_controller_main_corridor_light",),
         restore_timer_entity="timer.bedroom_main_restore_window",
         restore_minutes_entity="input_number.bedroom_main_restore_window_minutes",
-        door_grace_timer_entity="timer.bedroom_door_grace_window",
-        door_grace_seconds_entity="input_number.bedroom_door_grace_seconds",
+        presence_grace_timer_entity="timer.bedroom_presence_grace_window",
+        presence_grace_seconds_entity="input_number.bedroom_presence_grace_seconds",
     ),
 }

@@ -15,8 +15,8 @@ class LightAction(str, Enum):
     TURN_ROOM_OFF = "turn_room_off"
     START_RESTORE_WINDOW = "start_restore_window"
     CANCEL_RESTORE_WINDOW = "cancel_restore_window"
-    START_DOOR_GRACE_WINDOW = "start_door_grace_window"
-    CANCEL_DOOR_GRACE_WINDOW = "cancel_door_grace_window"
+    START_PRESENCE_GRACE_WINDOW = "start_presence_grace_window"
+    CANCEL_PRESENCE_GRACE_WINDOW = "cancel_presence_grace_window"
 
 
 @dataclass(slots=True, frozen=True)
@@ -35,7 +35,7 @@ class DecisionSnapshot:
     room_on: bool
     neighbor_main_on: bool
     restore_window_active: bool
-    door_grace_window_active: bool
+    presence_grace_window_active: bool
     seconds_since_main_off: float
     main_off_window_seconds: float
 
