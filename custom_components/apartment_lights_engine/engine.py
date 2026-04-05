@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from .const import (
     CAUSE_AUTO_TOGGLE,
+    CAUSE_DOOR_GRACE_FINISHED,
     CAUSE_DOOR_OPEN,
     CAUSE_LUX_BRIGHT_STABLE,
     CAUSE_LUX_CHANGED,
@@ -28,11 +29,14 @@ def _main_on(reason: str, *, cancel_restore: bool = False) -> DecisionResult:
     return DecisionResult(decision="turn_main_on", reason=reason, actions=tuple(actions))
 
 
-def _ambient_on(reason: str) -> DecisionResult:
+def _ambient_on(reason: str, *, start_door_grace: bool = False) -> DecisionResult:
+    actions = [LightAction.TURN_AMBIENT_ON]
+    if start_door_grace:
+        actions.append(LightAction.START_DOOR_GRACE_WINDOW)
     return DecisionResult(
         decision="turn_ambient_on",
         reason=reason,
-        actions=(LightAction.TURN_AMBIENT_ON,),
+        actions=tuple(actions),
     )
 
 
@@ -52,6 +56,29 @@ def _start_restore(reason: str) -> DecisionResult:
     )
 
 
+def _room_off(
+    reason: str,
+    *,
+    start_restore: bool = False,
+    cancel_door_grace: bool = False,
+) -> DecisionResult:
+    actions: list[LightAction] = []
+    if start_restore:
+        actions.append(LightAction.START_RESTORE_WINDOW)
+    if cancel_door_grace:
+        actions.append(LightAction.CANCEL_DOOR_GRACE_WINDOW)
+    actions.append(LightAction.TURN_ROOM_OFF)
+    return DecisionResult(decision="turn_room_off", reason=reason, actions=tuple(actions))
+
+
+def _cancel_door_grace(reason: str) -> DecisionResult:
+    return DecisionResult(
+        decision="cancel_door_grace_window",
+        reason=reason,
+        actions=(LightAction.CANCEL_DOOR_GRACE_WINDOW,),
+    )
+
+
 def decide_light_action(snapshot: DecisionSnapshot) -> DecisionResult:
     """Return one deterministic decision for a single trigger cause."""
 
@@ -68,10 +95,26 @@ def decide_light_action(snapshot: DecisionSnapshot) -> DecisionResult:
     if not snapshot.auto_enabled:
         return _noop("auto_disabled")
 
+    if (
+        snapshot.cause == CAUSE_MOTION_ON
+        and snapshot.door_grace_window_active
+        and snapshot.room_on
+    ):
+        return _cancel_door_grace("presence_confirmed_after_door_open")
+
     if snapshot.cause == CAUSE_MOTION_OFF:
         if snapshot.main_on:
-            return _start_restore("presence_lost_while_main_was_on")
-        return _noop("presence_lost_but_main_already_off")
+            return _room_off(
+                "presence_lost_turns_room_off_and_starts_restore_window",
+                start_restore=True,
+                cancel_door_grace=snapshot.door_grace_window_active,
+            )
+        if snapshot.room_on:
+            return _room_off(
+                "presence_lost_turns_room_off",
+                cancel_door_grace=snapshot.door_grace_window_active,
+            )
+        return _noop("presence_lost_but_room_already_off")
 
     if snapshot.cause == CAUSE_MAIN_ON:
         if snapshot.ambient_on:
@@ -86,6 +129,11 @@ def decide_light_action(snapshot: DecisionSnapshot) -> DecisionResult:
         if snapshot.presence_on and not snapshot.ambient_on and dark:
             return _ambient_on("manual_main_off_while_occupied_switches_to_ambient")
         return _noop("main_off_without_dark_occupied_fallback")
+
+    if snapshot.cause == CAUSE_DOOR_GRACE_FINISHED:
+        if snapshot.room_on and not snapshot.presence_on:
+            return _room_off("door_open_without_presence_times_out")
+        return _noop("door_grace_finished_but_room_confirmed_or_already_off")
 
     if snapshot.ambient_on and (
         snapshot.cause == CAUSE_LUX_BRIGHT_STABLE
@@ -137,8 +185,19 @@ def decide_light_action(snapshot: DecisionSnapshot) -> DecisionResult:
         and not snapshot.main_on
         and not snapshot.ambient_on
     ):
+        start_door_grace = snapshot.cause == CAUSE_DOOR_OPEN and not snapshot.presence_on
         if snapshot.neighbor_main_on:
-            return _main_on("entry_path_prefers_main_due_to_neighbor")
-        return _ambient_on("entry_path_prefers_ambient_without_neighbor")
+            actions = [LightAction.TURN_MAIN_ON]
+            if start_door_grace:
+                actions.append(LightAction.START_DOOR_GRACE_WINDOW)
+            return DecisionResult(
+                decision="turn_main_on",
+                reason="entry_path_prefers_main_due_to_neighbor",
+                actions=tuple(actions),
+            )
+        return _ambient_on(
+            "entry_path_prefers_ambient_without_neighbor",
+            start_door_grace=start_door_grace,
+        )
 
     return _noop("no_rule_matched")

@@ -143,8 +143,10 @@ def _build_snapshot(hass: HomeAssistant, room: RoomConfig, cause: str) -> Decisi
         lux_off_threshold=_float_state(hass, room.lux_off_threshold_entity, default=120.0),
         main_on=_is_on(hass, room.main_state_entity),
         ambient_on=_is_on(hass, room.ambient_entity),
+        room_on=_is_on(hass, room.room_off_entity),
         neighbor_main_on=any(_is_on(hass, entity_id) for entity_id in room.neighbor_main_entities),
         restore_window_active=_state(hass, room.restore_timer_entity) == "active",
+        door_grace_window_active=_state(hass, room.door_grace_timer_entity) == "active",
         seconds_since_main_off=seconds_since_main_off,
         main_off_window_seconds=room.main_off_window_seconds,
     )
@@ -211,6 +213,13 @@ async def _async_execute_actions(
                 {CONF_ENTITY_ID: room.ambient_entity},
                 blocking=True,
             )
+        elif action == LightAction.TURN_ROOM_OFF:
+            await hass.services.async_call(
+                LIGHT_DOMAIN,
+                "turn_off",
+                {CONF_ENTITY_ID: room.room_off_entity},
+                blocking=True,
+            )
         elif action == LightAction.START_RESTORE_WINDOW:
             minutes = max(
                 1,
@@ -230,5 +239,26 @@ async def _async_execute_actions(
                 TIMER_DOMAIN,
                 "cancel",
                 {CONF_ENTITY_ID: room.restore_timer_entity},
+                blocking=True,
+            )
+        elif action == LightAction.START_DOOR_GRACE_WINDOW:
+            seconds = max(
+                1,
+                int(round(_float_state(hass, room.door_grace_seconds_entity, default=15.0))),
+            )
+            await hass.services.async_call(
+                TIMER_DOMAIN,
+                "start",
+                {
+                    CONF_ENTITY_ID: room.door_grace_timer_entity,
+                    "duration": str(timedelta(seconds=seconds)),
+                },
+                blocking=True,
+            )
+        elif action == LightAction.CANCEL_DOOR_GRACE_WINDOW:
+            await hass.services.async_call(
+                TIMER_DOMAIN,
+                "cancel",
+                {CONF_ENTITY_ID: room.door_grace_timer_entity},
                 blocking=True,
             )

@@ -12,8 +12,11 @@ class LightAction(str, Enum):
     TURN_MAIN_ON = "turn_main_on"
     TURN_AMBIENT_ON = "turn_ambient_on"
     TURN_AMBIENT_OFF = "turn_ambient_off"
+    TURN_ROOM_OFF = "turn_room_off"
     START_RESTORE_WINDOW = "start_restore_window"
     CANCEL_RESTORE_WINDOW = "cancel_restore_window"
+    START_DOOR_GRACE_WINDOW = "start_door_grace_window"
+    CANCEL_DOOR_GRACE_WINDOW = "cancel_door_grace_window"
 
 
 @dataclass(slots=True, frozen=True)
@@ -29,8 +32,10 @@ class DecisionSnapshot:
     lux_off_threshold: float
     main_on: bool
     ambient_on: bool
+    room_on: bool
     neighbor_main_on: bool
     restore_window_active: bool
+    door_grace_window_active: bool
     seconds_since_main_off: float
     main_off_window_seconds: float
 

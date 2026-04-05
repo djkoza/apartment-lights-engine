@@ -6,6 +6,7 @@ import unittest
 
 from custom_components.apartment_lights_engine.const import (
     CAUSE_AUTO_TOGGLE,
+    CAUSE_DOOR_GRACE_FINISHED,
     CAUSE_DOOR_OPEN,
     CAUSE_LUX_BRIGHT_STABLE,
     CAUSE_LUX_CHANGED,
@@ -32,8 +33,10 @@ def snapshot(**overrides: object) -> DecisionSnapshot:
         lux_off_threshold=120.0,
         main_on=False,
         ambient_on=False,
+        room_on=False,
         neighbor_main_on=False,
         restore_window_active=False,
+        door_grace_window_active=False,
         seconds_since_main_off=999.0,
         main_off_window_seconds=15.0,
     )
@@ -86,7 +89,10 @@ class ApartmentLightsEngineTests(unittest.TestCase):
         result = decide_light_action(
             snapshot(cause=CAUSE_DOOR_OPEN, presence_on=False, neighbor_main_on=False)
         )
-        self.assertEqual(result.actions, (LightAction.TURN_AMBIENT_ON,))
+        self.assertEqual(
+            result.actions,
+            (LightAction.TURN_AMBIENT_ON, LightAction.START_DOOR_GRACE_WINDOW),
+        )
 
     def test_threshold_change_dark_reuses_same_main_vs_ambient_logic(self) -> None:
         result = decide_light_action(
@@ -95,8 +101,17 @@ class ApartmentLightsEngineTests(unittest.TestCase):
         self.assertEqual(result.actions, (LightAction.TURN_MAIN_ON,))
 
     def test_motion_off_starts_restore_window_only_when_main_was_on(self) -> None:
-        result = decide_light_action(snapshot(cause=CAUSE_MOTION_OFF, main_on=True))
-        self.assertEqual(result.actions, (LightAction.START_RESTORE_WINDOW,))
+        result = decide_light_action(snapshot(cause=CAUSE_MOTION_OFF, main_on=True, room_on=True))
+        self.assertEqual(
+            result.actions,
+            (LightAction.START_RESTORE_WINDOW, LightAction.TURN_ROOM_OFF),
+        )
+
+    def test_motion_off_turns_room_off_when_only_ambient_is_on(self) -> None:
+        result = decide_light_action(
+            snapshot(cause=CAUSE_MOTION_OFF, main_on=False, ambient_on=True, room_on=True)
+        )
+        self.assertEqual(result.actions, (LightAction.TURN_ROOM_OFF,))
 
     def test_quick_return_overrides_normal_dark_entry_path(self) -> None:
         """Regression for the failed salon scenario from 2026-04-05."""
@@ -130,6 +145,29 @@ class ApartmentLightsEngineTests(unittest.TestCase):
             )
         )
         self.assertEqual(result.actions, ())
+
+    def test_motion_on_confirms_entry_and_cancels_door_grace(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_MOTION_ON,
+                presence_on=True,
+                room_on=True,
+                ambient_on=True,
+                door_grace_window_active=True,
+            )
+        )
+        self.assertEqual(result.actions, (LightAction.CANCEL_DOOR_GRACE_WINDOW,))
+
+    def test_door_grace_finished_turns_room_off_if_presence_never_arrived(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_DOOR_GRACE_FINISHED,
+                presence_on=False,
+                room_on=True,
+                ambient_on=True,
+            )
+        )
+        self.assertEqual(result.actions, (LightAction.TURN_ROOM_OFF,))
 
     def test_auto_disabled_is_noop(self) -> None:
         result = decide_light_action(snapshot(auto_enabled=False, cause=CAUSE_AUTO_TOGGLE))
