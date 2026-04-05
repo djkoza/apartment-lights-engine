@@ -66,11 +66,14 @@ def _room_off(
     reason: str,
     *,
     start_restore: bool = False,
+    cancel_restore: bool = False,
     cancel_presence_grace: bool = False,
 ) -> DecisionResult:
     actions: list[LightAction] = []
     if start_restore:
         actions.append(LightAction.START_RESTORE_WINDOW)
+    if cancel_restore:
+        actions.append(LightAction.CANCEL_RESTORE_WINDOW)
     if cancel_presence_grace:
         actions.append(LightAction.CANCEL_PRESENCE_GRACE_WINDOW)
     actions.append(LightAction.TURN_ROOM_OFF)
@@ -85,11 +88,15 @@ def _start_presence_grace(reason: str) -> DecisionResult:
     )
 
 
-def _cancel_presence_grace(reason: str) -> DecisionResult:
+def _cancel_presence_grace(reason: str, *, cancel_restore: bool = False) -> DecisionResult:
+    actions = []
+    if cancel_restore:
+        actions.append(LightAction.CANCEL_RESTORE_WINDOW)
+    actions.append(LightAction.CANCEL_PRESENCE_GRACE_WINDOW)
     return DecisionResult(
         decision="cancel_presence_grace_window",
         reason=reason,
-        actions=(LightAction.CANCEL_PRESENCE_GRACE_WINDOW,),
+        actions=tuple(actions),
     )
 
 
@@ -114,7 +121,10 @@ def decide_light_action(snapshot: DecisionSnapshot) -> DecisionResult:
         and snapshot.presence_grace_window_active
         and snapshot.room_on
     ):
-        return _cancel_presence_grace("presence_confirmed_after_room_turned_on")
+        return _cancel_presence_grace(
+            "presence_confirmed_after_room_turned_on",
+            cancel_restore=snapshot.restore_window_active,
+        )
 
     if snapshot.cause == CAUSE_ROOM_ON:
         if snapshot.room_on and not snapshot.presence_on and not snapshot.presence_grace_window_active:
@@ -157,7 +167,10 @@ def decide_light_action(snapshot: DecisionSnapshot) -> DecisionResult:
 
     if snapshot.cause == CAUSE_PRESENCE_GRACE_FINISHED:
         if snapshot.room_on and not snapshot.presence_on:
-            return _room_off("room_on_without_presence_times_out")
+            return _room_off(
+                "room_on_without_presence_times_out",
+                cancel_restore=snapshot.restore_window_active,
+            )
         return _noop("presence_grace_finished_but_room_confirmed_or_already_off")
 
     if snapshot.ambient_on and (

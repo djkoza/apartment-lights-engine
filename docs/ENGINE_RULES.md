@@ -82,14 +82,14 @@ The engine evaluates rules in this exact order.
 ## Decision Table
 | Cause | Required state | Decision |
 | --- | --- | --- |
-| `motion_on` | `presence_grace_window_active and room_on` | `cancel_presence_grace_window` |
+| `motion_on` | `presence_grace_window_active and room_on` | `cancel_presence_grace_window`, and also `cancel_restore_window` if old restore is still active |
 | `room_on` | `room_on and not presence_on and not presence_grace_window_active` | `start_presence_grace_window` |
 | `motion_off` | `main_on and room_on` | `start_restore_window + turn_room_off` |
 | `motion_off` | `room_on and main_off` | `turn_room_off` |
 | `main_on` | `ambient_on` | `turn_main_on + turn_ambient_off` |
 | `main_on` | `restore_window_active` | `turn_main_on + clear_restore_timer` |
 | `main_off` | `presence_on and dark and ambient_off` | `turn_ambient_on` |
-| `presence_grace_finished` | `room_on and not presence_on` | `turn_room_off` |
+| `presence_grace_finished` | `room_on and not presence_on` | `turn_room_off`, and also `cancel_restore_window` if old restore is still active |
 | `lux_bright_stable` | `ambient_on` | `turn_ambient_off` |
 | `thresholds_changed` | `ambient_on and bright` | `turn_ambient_off` |
 | `motion_on` | `restore_window_active and dark and main_off` | `turn_main_on + cancel_restore_window` |

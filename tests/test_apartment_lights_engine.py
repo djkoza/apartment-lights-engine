@@ -192,6 +192,25 @@ class ApartmentLightsEngineTests(unittest.TestCase):
         )
         self.assertEqual(result.actions, (LightAction.CANCEL_PRESENCE_GRACE_WINDOW,))
 
+    def test_motion_on_confirms_presence_and_cancels_presence_grace_and_restore(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_MOTION_ON,
+                presence_on=True,
+                room_on=True,
+                ambient_on=True,
+                presence_grace_window_active=True,
+                restore_window_active=True,
+            )
+        )
+        self.assertEqual(
+            result.actions,
+            (
+                LightAction.CANCEL_RESTORE_WINDOW,
+                LightAction.CANCEL_PRESENCE_GRACE_WINDOW,
+            ),
+        )
+
     def test_room_on_without_presence_starts_presence_grace(self) -> None:
         result = decide_light_action(
             snapshot(
@@ -213,6 +232,24 @@ class ApartmentLightsEngineTests(unittest.TestCase):
             )
         )
         self.assertEqual(result.actions, (LightAction.TURN_ROOM_OFF,))
+
+    def test_presence_grace_finished_turns_room_off_and_cancels_restore(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_PRESENCE_GRACE_FINISHED,
+                presence_on=False,
+                room_on=True,
+                ambient_on=True,
+                restore_window_active=True,
+            )
+        )
+        self.assertEqual(
+            result.actions,
+            (
+                LightAction.CANCEL_RESTORE_WINDOW,
+                LightAction.TURN_ROOM_OFF,
+            ),
+        )
 
     def test_auto_disabled_is_noop(self) -> None:
         result = decide_light_action(snapshot(auto_enabled=False, cause=CAUSE_AUTO_TOGGLE))
