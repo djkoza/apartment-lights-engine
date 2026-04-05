@@ -247,7 +247,42 @@ async def _async_execute_actions(
     from homeassistant.components.timer import DOMAIN as TIMER_DOMAIN
     from homeassistant.const import CONF_ENTITY_ID
 
-    for action in actions:
+    pending_actions = list(actions)
+
+    # `main_on` after a manual wall-switch event is usually a sync path:
+    # the main light is already on, while ambient is still fading out.
+    # Turn ambient off first and only then sync the remaining main entities
+    # (for example WLED), which shortens the visible overlap.
+    if (
+        LightAction.TURN_MAIN_ON in pending_actions
+        and LightAction.TURN_AMBIENT_OFF in pending_actions
+        and _is_on(hass, room.main_state_entity)
+    ):
+        await hass.services.async_call(
+            LIGHT_DOMAIN,
+            "turn_off",
+            {CONF_ENTITY_ID: room.ambient_entity},
+            blocking=True,
+        )
+        extra_main_entities = [
+            entity_id
+            for entity_id in room.main_action_entities
+            if entity_id != room.main_state_entity
+        ]
+        if extra_main_entities:
+            await hass.services.async_call(
+                LIGHT_DOMAIN,
+                "turn_on",
+                {CONF_ENTITY_ID: extra_main_entities},
+                blocking=True,
+            )
+        pending_actions = [
+            action
+            for action in pending_actions
+            if action not in {LightAction.TURN_MAIN_ON, LightAction.TURN_AMBIENT_OFF}
+        ]
+
+    for action in pending_actions:
         if action == LightAction.TURN_MAIN_ON:
             await hass.services.async_call(
                 LIGHT_DOMAIN,

@@ -3,7 +3,7 @@
   "name": "Apartment Lights Engine",
   "documentation": "https://github.com/djkoza/apartment-lights-engine",
   "issue_tracker": "https://github.com/djkoza/apartment-lights-engine/issues",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "config_flow": true,
   "codeowners": [],
   "requirements": [],
