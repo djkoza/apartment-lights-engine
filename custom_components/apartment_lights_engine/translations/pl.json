@@ -1,0 +1,77 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Apartment Lights Engine",
+        "description": "Utwórz współdzielony silnik decyzyjny oświetlenia mieszkania."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Dozwolona jest tylko jedna instancja Apartment Lights Engine."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Zarządzaj pomieszczeniami",
+        "data": {
+          "next_step_id": "Akcja"
+        },
+        "menu_options": {
+          "add_room": "Dodaj pomieszczenie",
+          "edit_room": "Edytuj pomieszczenie",
+          "remove_room": "Usuń pomieszczenie"
+        }
+      },
+      "add_room_id": {
+        "title": "Dodaj pomieszczenie",
+        "description": "Wybierz stabilny identyfikator pomieszczenia, np. livingroom, bedroom, kitchen albo corridor.",
+        "data": {
+          "room_id": "Id pomieszczenia"
+        }
+      },
+      "edit_room": {
+        "title": "Edytuj pomieszczenie",
+        "data": {
+          "room": "Pomieszczenie"
+        }
+      },
+      "remove_room": {
+        "title": "Usuń pomieszczenie",
+        "data": {
+          "room": "Pomieszczenie"
+        }
+      },
+      "room_details": {
+        "title": "Mapowanie pomieszczenia",
+        "description": "Skonfiguruj wszystkie encje dla {room_id}.",
+        "data": {
+          "auto_enabled_entity": "Przełącznik auto świateł",
+          "presence_entity": "Czujnik obecności",
+          "door_entity": "Czujnik drzwi/kontaktu",
+          "lux_entity": "Czujnik natężenia światła",
+          "lux_on_threshold_entity": "Helper progu włączenia lux",
+          "lux_off_threshold_entity": "Helper progu wyłączenia lux",
+          "main_state_entity": "Encja stanu światła głównego",
+          "main_action_entities": "Encje akcji światła głównego",
+          "ambient_entity": "Encja światła ambient",
+          "room_off_entity": "Grupa świateł całego pomieszczenia",
+          "neighbor_main_entities": "Główne światła sąsiednich pomieszczeń",
+          "restore_timer_entity": "Timer szybkiego powrotu",
+          "restore_minutes_entity": "Helper minut szybkiego powrotu",
+          "presence_grace_timer_entity": "Timer grace obecności",
+          "presence_grace_seconds_entity": "Helper sekund grace obecności",
+          "main_off_window_seconds": "Okno po zgaszeniu światła głównego (sekundy)"
+        }
+      }
+    },
+    "error": {
+      "invalid_room_id": "Id pomieszczenia jest nieprawidłowe.",
+      "room_already_exists": "Takie id pomieszczenia już istnieje.",
+      "required": "To pole jest wymagane."
+    },
+    "abort": {
+      "no_rooms_configured": "Nie ma jeszcze skonfigurowanych pomieszczeń."
+    }
+  }
+}

@@ -1,5 +1,4 @@
 {
-  "title": "Apartment Lights Engine",
   "config": {
     "step": {
       "user": {
@@ -26,7 +25,7 @@
       },
       "add_room_id": {
         "title": "Add room",
-        "description": "Choose a stable room id such as `livingroom`, `bedroom`, `kitchen` or `corridor`.",
+        "description": "Choose a stable room id such as livingroom, bedroom, kitchen or corridor.",
         "data": {
           "room_id": "Room ID"
         }
@@ -45,7 +44,7 @@
       },
       "room_details": {
         "title": "Room mapping",
-        "description": "Configure all entity mappings for `{room_id}`.",
+        "description": "Configure all entity mappings for {room_id}.",
         "data": {
           "auto_enabled_entity": "Auto lights switch",
           "presence_entity": "Presence sensor",
