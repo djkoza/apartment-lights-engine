@@ -45,39 +45,88 @@ def _rooms_from_entry(entry: config_entries.ConfigEntry) -> dict[str, dict[str, 
     return dict(raw)
 
 
-def _room_schema() -> vol.Schema:
+def _room_schema(current: dict[str, Any] | None = None) -> vol.Schema:
     """Build one room form schema."""
+    current = current or {}
     entity = selector.EntitySelector
     entity_cfg = selector.EntitySelectorConfig
+    door_key: Any = vol.Optional(CONF_DOOR_ENTITY)
+    if current.get(CONF_DOOR_ENTITY):
+        door_key = vol.Optional(CONF_DOOR_ENTITY, default=current[CONF_DOOR_ENTITY])
     return vol.Schema(
         {
-            vol.Required(CONF_AUTO_ENABLED_ENTITY): entity(entity_cfg(domain="input_boolean")),
-            vol.Required(CONF_PRESENCE_ENTITY): entity(
+            vol.Required(
+                CONF_AUTO_ENABLED_ENTITY,
+                default=current.get(CONF_AUTO_ENABLED_ENTITY, vol.UNDEFINED),
+            ): entity(entity_cfg(domain="input_boolean")),
+            vol.Required(
+                CONF_PRESENCE_ENTITY,
+                default=current.get(CONF_PRESENCE_ENTITY, vol.UNDEFINED),
+            ): entity(
                 entity_cfg(
                     domain="binary_sensor",
                     device_class=["motion", "occupancy", "presence"],
                 )
             ),
-            vol.Optional(CONF_DOOR_ENTITY): entity(entity_cfg(domain="binary_sensor")),
-            vol.Required(CONF_LUX_ENTITY): entity(entity_cfg(domain="sensor")),
-            vol.Required(CONF_LUX_ON_THRESHOLD_ENTITY): entity(entity_cfg(domain="input_number")),
-            vol.Required(CONF_LUX_OFF_THRESHOLD_ENTITY): entity(entity_cfg(domain="input_number")),
-            vol.Required(CONF_MAIN_STATE_ENTITY): entity(entity_cfg(domain="light")),
-            vol.Required(CONF_MAIN_ACTION_ENTITIES): entity(
+            door_key: entity(entity_cfg(domain="binary_sensor")),
+            vol.Required(
+                CONF_LUX_ENTITY,
+                default=current.get(CONF_LUX_ENTITY, vol.UNDEFINED),
+            ): entity(entity_cfg(domain="sensor")),
+            vol.Required(
+                CONF_LUX_ON_THRESHOLD_ENTITY,
+                default=current.get(CONF_LUX_ON_THRESHOLD_ENTITY, vol.UNDEFINED),
+            ): entity(entity_cfg(domain="input_number")),
+            vol.Required(
+                CONF_LUX_OFF_THRESHOLD_ENTITY,
+                default=current.get(CONF_LUX_OFF_THRESHOLD_ENTITY, vol.UNDEFINED),
+            ): entity(entity_cfg(domain="input_number")),
+            vol.Required(
+                CONF_MAIN_STATE_ENTITY,
+                default=current.get(CONF_MAIN_STATE_ENTITY, vol.UNDEFINED),
+            ): entity(entity_cfg(domain="light")),
+            vol.Required(
+                CONF_MAIN_ACTION_ENTITIES,
+                default=current.get(CONF_MAIN_ACTION_ENTITIES, []),
+            ): entity(
                 entity_cfg(domain="light", multiple=True)
             ),
-            vol.Required(CONF_AMBIENT_ENTITY): entity(entity_cfg(domain="light")),
-            vol.Required(CONF_ROOM_OFF_ENTITY): entity(entity_cfg(domain="light")),
-            vol.Required(CONF_NEIGHBOR_MAIN_ENTITIES): entity(
+            vol.Required(
+                CONF_AMBIENT_ENTITY,
+                default=current.get(CONF_AMBIENT_ENTITY, vol.UNDEFINED),
+            ): entity(entity_cfg(domain="light")),
+            vol.Required(
+                CONF_ROOM_OFF_ENTITY,
+                default=current.get(CONF_ROOM_OFF_ENTITY, vol.UNDEFINED),
+            ): entity(entity_cfg(domain="light")),
+            vol.Required(
+                CONF_NEIGHBOR_MAIN_ENTITIES,
+                default=current.get(CONF_NEIGHBOR_MAIN_ENTITIES, []),
+            ): entity(
                 entity_cfg(domain="light", multiple=True)
             ),
-            vol.Required(CONF_RESTORE_TIMER_ENTITY): entity(entity_cfg(domain="timer")),
-            vol.Required(CONF_RESTORE_MINUTES_ENTITY): entity(entity_cfg(domain="input_number")),
-            vol.Required(CONF_PRESENCE_GRACE_TIMER_ENTITY): entity(entity_cfg(domain="timer")),
-            vol.Required(CONF_PRESENCE_GRACE_SECONDS_ENTITY): entity(
+            vol.Required(
+                CONF_RESTORE_TIMER_ENTITY,
+                default=current.get(CONF_RESTORE_TIMER_ENTITY, vol.UNDEFINED),
+            ): entity(entity_cfg(domain="timer")),
+            vol.Required(
+                CONF_RESTORE_MINUTES_ENTITY,
+                default=current.get(CONF_RESTORE_MINUTES_ENTITY, vol.UNDEFINED),
+            ): entity(entity_cfg(domain="input_number")),
+            vol.Required(
+                CONF_PRESENCE_GRACE_TIMER_ENTITY,
+                default=current.get(CONF_PRESENCE_GRACE_TIMER_ENTITY, vol.UNDEFINED),
+            ): entity(entity_cfg(domain="timer")),
+            vol.Required(
+                CONF_PRESENCE_GRACE_SECONDS_ENTITY,
+                default=current.get(CONF_PRESENCE_GRACE_SECONDS_ENTITY, vol.UNDEFINED),
+            ): entity(
                 entity_cfg(domain="input_number")
             ),
-            vol.Required(CONF_MAIN_OFF_WINDOW_SECONDS, default=15.0): selector.NumberSelector(
+            vol.Required(
+                CONF_MAIN_OFF_WINDOW_SECONDS,
+                default=current.get(CONF_MAIN_OFF_WINDOW_SECONDS, 15.0),
+            ): selector.NumberSelector(
                 selector.NumberSelectorConfig(
                     min=1,
                     max=120,
@@ -113,7 +162,6 @@ class ApartmentLightsEngineOptionsFlow(config_entries.OptionsFlow):
     """Edit room mappings for the shared light engine."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self.config_entry = config_entry
         self._rooms = _rooms_from_entry(config_entry)
         self._room_id: str | None = None
 
@@ -227,10 +275,9 @@ class ApartmentLightsEngineOptionsFlow(config_entries.OptionsFlow):
         if self._room_id is not None:
             current = dict(self._rooms.get(self._room_id, {}))
 
-        schema = self.add_suggested_values_to_schema(_room_schema(), current)
         return self.async_show_form(
             step_id="room_details",
-            data_schema=schema,
+            data_schema=_room_schema(current),
             errors=errors,
             description_placeholders={"room_id": self._room_id or ""},
         )
