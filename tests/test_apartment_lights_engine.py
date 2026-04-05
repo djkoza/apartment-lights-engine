@@ -135,6 +135,17 @@ class ApartmentLightsEngineTests(unittest.TestCase):
         result = decide_light_action(snapshot(auto_enabled=False, cause=CAUSE_AUTO_TOGGLE))
         self.assertEqual(result.actions, ())
 
+    def test_invalid_threshold_order_is_noop(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_MOTION_ON,
+                lux_on_threshold=120.0,
+                lux_off_threshold=80.0,
+            )
+        )
+        self.assertEqual(result.actions, ())
+        self.assertEqual(result.reason, "invalid_threshold_order")
+
 
 if __name__ == "__main__":
     unittest.main()

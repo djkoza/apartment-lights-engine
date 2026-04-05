@@ -55,6 +55,9 @@ def _start_restore(reason: str) -> DecisionResult:
 def decide_light_action(snapshot: DecisionSnapshot) -> DecisionResult:
     """Return one deterministic decision for a single trigger cause."""
 
+    if snapshot.lux_on_threshold >= snapshot.lux_off_threshold:
+        return _noop("invalid_threshold_order")
+
     dark = snapshot.lux < snapshot.lux_on_threshold
     bright = snapshot.lux > snapshot.lux_off_threshold
     main_recently_off = (

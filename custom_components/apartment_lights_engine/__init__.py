@@ -96,6 +96,13 @@ async def _async_register_services(hass: HomeAssistant) -> None:
             decision.reason,
             [action.value for action in decision.actions],
         )
+        if decision.reason == "invalid_threshold_order":
+            _LOGGER.warning(
+                "Apartment lights invalid threshold order room=%s lux_on_threshold=%s lux_off_threshold=%s",
+                room,
+                snapshot.lux_on_threshold,
+                snapshot.lux_off_threshold,
+            )
 
         if not dry_run:
             await _async_execute_actions(hass, room_config, decision.actions)
