@@ -30,6 +30,7 @@ from .const import (
     CONF_ROOMS,
     DOMAIN,
 )
+from .rooms import overlapping_main_and_ambient_entities
  
 
 ROOM_ID = "room_id"
@@ -136,6 +137,20 @@ def _room_schema(current: dict[str, Any] | None = None) -> vol.Schema:
             ),
         }
     )
+
+
+def _entity_members(hass, entity_id: str) -> tuple[str, ...]:
+    """Return child entities when the selected ambient entity is a light group."""
+    state = hass.states.get(entity_id) if hass is not None else None
+    if state is None:
+        return ()
+
+    members = state.attributes.get("entity_id")
+    if isinstance(members, str):
+        return (members,)
+    if isinstance(members, (list, tuple, set)):
+        return tuple(member for member in members if isinstance(member, str))
+    return ()
 
 
 class ApartmentLightsEngineConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -258,9 +273,17 @@ class ApartmentLightsEngineOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             if not user_input.get(CONF_MAIN_ACTION_ENTITIES):
                 errors[CONF_MAIN_ACTION_ENTITIES] = "required"
-            elif not user_input.get(CONF_NEIGHBOR_MAIN_ENTITIES):
+            if not user_input.get(CONF_NEIGHBOR_MAIN_ENTITIES):
                 # Empty neighbor list is valid. Normalize below.
                 user_input[CONF_NEIGHBOR_MAIN_ENTITIES] = []
+
+            overlaps = overlapping_main_and_ambient_entities(
+                user_input.get(CONF_MAIN_ACTION_ENTITIES, []),
+                user_input[CONF_AMBIENT_ENTITY],
+                _entity_members(self.hass, user_input[CONF_AMBIENT_ENTITY]),
+            )
+            if overlaps:
+                errors[CONF_MAIN_ACTION_ENTITIES] = "ambient_overlaps_main_action_entities"
 
             if not errors and self._room_id is not None:
                 cleaned = dict(user_input)

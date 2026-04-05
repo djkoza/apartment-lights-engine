@@ -48,6 +48,23 @@ class RoomConfig:
     main_off_window_seconds: float = 15.0
 
 
+def overlapping_main_and_ambient_entities(
+    main_action_entities: tuple[str, ...] | list[str],
+    ambient_entity: str,
+    ambient_members: tuple[str, ...] | list[str] = (),
+) -> tuple[str, ...]:
+    """Return direct or group-member overlaps between main and ambient paths."""
+    main_entities = tuple(entity_id for entity_id in main_action_entities if entity_id)
+    ambient_member_set = {entity_id for entity_id in ambient_members if entity_id}
+
+    overlaps = {
+        entity_id
+        for entity_id in main_entities
+        if entity_id == ambient_entity or entity_id in ambient_member_set
+    }
+    return tuple(sorted(overlaps))
+
+
 def room_config_to_dict(room: RoomConfig) -> dict[str, Any]:
     """Serialize one room config for config entry storage."""
     data = asdict(room)
@@ -131,10 +148,7 @@ LEGACY_DEFAULT_ROOM_CONFIGS: dict[str, RoomConfig] = {
         lux_on_threshold_entity="input_number.bedroom_lux_on_threshold",
         lux_off_threshold_entity="input_number.bedroom_lux_off_threshold",
         main_state_entity="light.raspberry_pi_light_controller_main_bedroom_light",
-        main_action_entities=(
-            "light.raspberry_pi_light_controller_main_bedroom_light",
-            "light.bedroom_wled_main",
-        ),
+        main_action_entities=("light.raspberry_pi_light_controller_main_bedroom_light",),
         ambient_entity="light.lights_group_bedroom_ambient",
         room_off_entity="light.lights_group_bedroom_all",
         neighbor_main_entities=("light.raspberry_pi_light_controller_main_corridor_light",),

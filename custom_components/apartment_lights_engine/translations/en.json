@@ -68,7 +68,8 @@
     "error": {
       "invalid_room_id": "Room id is invalid.",
       "room_already_exists": "This room id already exists.",
-      "required": "This field is required."
+      "required": "This field is required.",
+      "ambient_overlaps_main_action_entities": "Ambient light cannot be the same entity as a main-action light or contain one inside its group."
     },
     "abort": {
       "no_rooms_configured": "No rooms are configured yet."

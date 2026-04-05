@@ -126,8 +126,8 @@ entry rule can turn anything on.
 - `main_state_entity`: `light.raspberry_pi_light_controller_main_bedroom_light`
 - `main_action_entities`:
   - `light.raspberry_pi_light_controller_main_bedroom_light`
-  - `light.bedroom_wled_main`
 - `ambient_entity`: `light.lights_group_bedroom_ambient`
+  - contains only `light.bedroom_wled_main`
 - `neighbor_main_entities`:
   - `light.raspberry_pi_light_controller_main_corridor_light`
 

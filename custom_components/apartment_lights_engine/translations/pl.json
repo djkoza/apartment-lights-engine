@@ -68,7 +68,8 @@
     "error": {
       "invalid_room_id": "Id pomieszczenia jest nieprawidłowe.",
       "room_already_exists": "Takie id pomieszczenia już istnieje.",
-      "required": "To pole jest wymagane."
+      "required": "To pole jest wymagane.",
+      "ambient_overlaps_main_action_entities": "Światło ambient nie może być tą samą encją co światło z akcji main ani zawierać jej wewnątrz swojej grupy."
     },
     "abort": {
       "no_rooms_configured": "Nie ma jeszcze skonfigurowanych pomieszczeń."

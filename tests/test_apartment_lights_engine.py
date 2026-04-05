@@ -22,6 +22,7 @@ from custom_components.apartment_lights_engine.engine import decide_light_action
 from custom_components.apartment_lights_engine.model import DecisionSnapshot, LightAction
 from custom_components.apartment_lights_engine.rooms import (
     LEGACY_DEFAULT_ROOM_CONFIGS,
+    overlapping_main_and_ambient_entities,
     room_configs_from_storage,
     room_configs_to_storage,
 )
@@ -279,10 +280,43 @@ class ApartmentLightsEngineTests(unittest.TestCase):
             restored["livingroom"].presence_grace_timer_entity,
             "timer.livingroom_presence_grace_window",
         )
+        self.assertEqual(
+            restored["bedroom"].main_action_entities,
+            ("light.raspberry_pi_light_controller_main_bedroom_light",),
+        )
 
     def test_room_configs_from_empty_storage(self) -> None:
         self.assertEqual(room_configs_from_storage(None), {})
         self.assertEqual(room_configs_from_storage({}), {})
+
+    def test_overlap_helper_detects_direct_ambient_overlap(self) -> None:
+        self.assertEqual(
+            overlapping_main_and_ambient_entities(
+                ["light.main", "light.ambient"],
+                "light.ambient",
+            ),
+            ("light.ambient",),
+        )
+
+    def test_overlap_helper_detects_ambient_group_member_overlap(self) -> None:
+        self.assertEqual(
+            overlapping_main_and_ambient_entities(
+                ["light.main", "light.wled_main"],
+                "light.ambient_group",
+                ["light.wled_main"],
+            ),
+            ("light.wled_main",),
+        )
+
+    def test_overlap_helper_ignores_distinct_main_and_ambient_paths(self) -> None:
+        self.assertEqual(
+            overlapping_main_and_ambient_entities(
+                ["light.main"],
+                "light.ambient_group",
+                ["light.other_ambient"],
+            ),
+            (),
+        )
 
 
 if __name__ == "__main__":
