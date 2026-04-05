@@ -124,10 +124,7 @@ def _build_snapshot(hass: HomeAssistant, room: RoomConfig, cause: str) -> Decisi
     main_state = hass.states.get(room.main_state_entity)
     seconds_since_main_off = room.main_off_window_seconds + 1
     if main_state is not None and main_state.state == "off":
-        seconds_since_main_off = (
-            hass.loop.time()
-            - _monotonic_seconds_from_last_changed(hass, room.main_state_entity)
-        )
+        seconds_since_main_off = _seconds_since_last_changed(hass, room.main_state_entity)
 
     return DecisionSnapshot(
         room=room.room,
@@ -165,7 +162,7 @@ def _float_state(hass: HomeAssistant, entity_id: str, *, default: float) -> floa
         return default
 
 
-def _monotonic_seconds_from_last_changed(hass: HomeAssistant, entity_id: str) -> float:
+def _seconds_since_last_changed(hass: HomeAssistant, entity_id: str) -> float:
     state = hass.states.get(entity_id)
     if state is None or state.last_changed is None:
         return 0.0
