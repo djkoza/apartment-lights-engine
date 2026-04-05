@@ -306,7 +306,18 @@ class ApartmentLightsEngineTests(unittest.TestCase):
                 "light.raspberry_pi_light_controller_main_livingroom_light",
             ),
         )
+        self.assertEqual(
+            restored["kitchen"].neighbor_main_entities,
+            (
+                "light.raspberry_pi_light_controller_main_livingroom_light",
+                "light.raspberry_pi_light_controller_main_corridor_light",
+            ),
+        )
         self.assertIsNone(restored["livingroom"].shutter_entity)
+        self.assertEqual(
+            restored["kitchen"].shutter_entity,
+            "cover.raspberry_pi_shutter_controller_kitchen_kitchen_shutter",
+        )
 
     def test_room_config_roundtrip_preserves_optional_shutter_entity(self) -> None:
         raw = room_configs_to_storage(

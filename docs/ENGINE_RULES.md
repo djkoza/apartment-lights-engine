@@ -151,6 +151,20 @@ fallback and ambient will still wait for the next `lux_changed`.
   - `light.raspberry_pi_light_controller_main_kitchen_light`
   - `light.raspberry_pi_light_controller_main_livingroom_light`
 
+`kitchen`
+
+- `main_state_entity`: `light.raspberry_pi_light_controller_main_kitchen_light`
+- `main_action_entities`:
+  - `light.raspberry_pi_light_controller_main_kitchen_light`
+- `ambient_entity`: `light.lights_group_kitchen_ambient`
+  - contains:
+    - `light.raspberry_pi_light_controller_kitchen_light_1`
+    - `light.raspberry_pi_light_controller_kitchen_light_2`
+- `neighbor_main_entities`:
+  - `light.raspberry_pi_light_controller_main_livingroom_light`
+  - `light.raspberry_pi_light_controller_main_corridor_light`
+- `shutter_entity`: `cover.raspberry_pi_shutter_controller_kitchen_kitchen_shutter`
+
 ## Technical Reason For The Refactor
 The failed salon run on `2026-04-05` showed the defect clearly:
 
