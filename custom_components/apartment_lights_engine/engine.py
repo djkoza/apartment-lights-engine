@@ -178,14 +178,20 @@ def decide_light_action(snapshot: DecisionSnapshot) -> DecisionResult:
     if snapshot.cause == CAUSE_MAIN_ON:
         if snapshot.ambient_on or snapshot.restore_window_active:
             if snapshot.ambient_on and snapshot.restore_window_active:
-                reason = "manual_main_on_syncs_cluster_turns_off_ambient_and_clears_restore_timer"
+                if snapshot.always_dark:
+                    reason = "always_dark_main_on_syncs_cluster_and_clears_restore_timer"
+                else:
+                    reason = "manual_main_on_syncs_cluster_turns_off_ambient_and_clears_restore_timer"
             elif snapshot.ambient_on:
-                reason = "manual_main_on_syncs_cluster_and_turns_off_ambient"
+                if snapshot.always_dark:
+                    reason = "always_dark_main_on_syncs_cluster_keeps_ambient"
+                else:
+                    reason = "manual_main_on_syncs_cluster_and_turns_off_ambient"
             else:
                 reason = "manual_main_on_syncs_cluster_and_clears_restore_timer"
             return _main_on(
                 reason,
-                turn_off_ambient=snapshot.ambient_on,
+                turn_off_ambient=snapshot.ambient_on and not snapshot.always_dark,
                 cancel_restore=snapshot.restore_window_active,
             )
         return _main_on("manual_main_on_syncs_cluster")

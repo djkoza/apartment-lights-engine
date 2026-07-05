@@ -84,6 +84,34 @@ class ApartmentLightsEngineTests(unittest.TestCase):
             ),
         )
 
+    def test_always_dark_main_on_keeps_ambient_on(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_MAIN_ON,
+                main_on=True,
+                ambient_on=True,
+                always_dark=True,
+            )
+        )
+        self.assertEqual(result.actions, (LightAction.TURN_MAIN_ON,))
+        self.assertEqual(result.reason, "always_dark_main_on_syncs_cluster_keeps_ambient")
+
+    def test_always_dark_main_on_keeps_ambient_and_clears_restore(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_MAIN_ON,
+                main_on=True,
+                ambient_on=True,
+                restore_window_active=True,
+                always_dark=True,
+            )
+        )
+        self.assertEqual(
+            result.actions,
+            (LightAction.TURN_MAIN_ON, LightAction.CANCEL_RESTORE_WINDOW),
+        )
+        self.assertEqual(result.reason, "always_dark_main_on_syncs_cluster_and_clears_restore_timer")
+
     def test_manual_main_off_while_occupied_goes_to_ambient_when_dark(self) -> None:
         result = decide_light_action(
             snapshot(cause=CAUSE_MAIN_OFF, main_on=False, ambient_on=False, presence_on=True, lux=20.0)
