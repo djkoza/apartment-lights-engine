@@ -50,6 +50,7 @@
           "presence_entity": "Presence sensor",
           "door_entity": "Door/contact sensor",
           "shutter_entity": "Shutter entity (optional)",
+          "sleep_mode_entity": "Sleep mode switch (optional)",
           "lux_entity": "Illuminance sensor",
           "lux_on_threshold_entity": "Lux on threshold helper",
           "lux_off_threshold_entity": "Lux off threshold helper",

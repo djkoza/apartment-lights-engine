@@ -23,6 +23,7 @@ from .const import (
     CONF_RESTORE_TIMER_ENTITY,
     CONF_ROOM_OFF_ENTITY,
     CONF_SHUTTER_ENTITY,
+    CONF_SLEEP_MODE_ENTITY,
 )
 
 
@@ -48,6 +49,7 @@ class RoomConfig:
     presence_grace_seconds_entity: str
     main_off_window_seconds: float = 15.0
     shutter_entity: str | None = None
+    sleep_mode_entity: str | None = None
 
 
 def overlapping_main_and_ambient_entities(
@@ -96,6 +98,7 @@ def room_config_from_dict(room_id: str, raw: dict[str, Any]) -> RoomConfig:
         presence_grace_seconds_entity=raw[CONF_PRESENCE_GRACE_SECONDS_ENTITY],
         main_off_window_seconds=float(raw.get(CONF_MAIN_OFF_WINDOW_SECONDS, 15.0)),
         shutter_entity=raw.get(CONF_SHUTTER_ENTITY) or None,
+        sleep_mode_entity=raw.get(CONF_SLEEP_MODE_ENTITY) or None,
     )
 
 

@@ -206,6 +206,7 @@ def _build_snapshot(hass: HomeAssistant, room: RoomConfig, cause: str) -> Decisi
         seconds_since_main_off=seconds_since_main_off,
         main_off_window_seconds=room.main_off_window_seconds,
         shutter_closed=room.shutter_entity is not None and _state(hass, room.shutter_entity) == "closed",
+        sleep_mode_on=room.sleep_mode_entity is not None and _is_on(hass, room.sleep_mode_entity),
     )
 
 

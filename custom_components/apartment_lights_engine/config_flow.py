@@ -29,6 +29,7 @@ from .const import (
     CONF_ROOM_OFF_ENTITY,
     CONF_ROOMS,
     CONF_SHUTTER_ENTITY,
+    CONF_SLEEP_MODE_ENTITY,
     DOMAIN,
 )
 from .rooms import overlapping_main_and_ambient_entities
@@ -58,6 +59,12 @@ def _room_schema(current: dict[str, Any] | None = None) -> vol.Schema:
     shutter_key: Any = vol.Optional(CONF_SHUTTER_ENTITY)
     if current.get(CONF_SHUTTER_ENTITY):
         shutter_key = vol.Optional(CONF_SHUTTER_ENTITY, default=current[CONF_SHUTTER_ENTITY])
+    sleep_mode_key: Any = vol.Optional(CONF_SLEEP_MODE_ENTITY)
+    if current.get(CONF_SLEEP_MODE_ENTITY):
+        sleep_mode_key = vol.Optional(
+            CONF_SLEEP_MODE_ENTITY,
+            default=current[CONF_SLEEP_MODE_ENTITY],
+        )
     return vol.Schema(
         {
             vol.Required(
@@ -75,6 +82,9 @@ def _room_schema(current: dict[str, Any] | None = None) -> vol.Schema:
             ),
             door_key: entity(entity_cfg(domain="binary_sensor")),
             shutter_key: entity(entity_cfg(domain="cover")),
+            sleep_mode_key: entity(
+                entity_cfg(domain=["binary_sensor", "input_boolean", "switch"])
+            ),
             vol.Required(
                 CONF_LUX_ENTITY,
                 default=current.get(CONF_LUX_ENTITY, vol.UNDEFINED),

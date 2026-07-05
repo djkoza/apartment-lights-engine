@@ -39,6 +39,7 @@ class DecisionSnapshot:
     seconds_since_main_off: float
     main_off_window_seconds: float
     shutter_closed: bool = False
+    sleep_mode_on: bool = False
 
     def as_dict(self) -> dict[str, object]:
         """Serialize for logs and service responses."""

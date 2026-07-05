@@ -15,6 +15,8 @@ Current scope:
   [custom_components/apartment_lights_engine/rooms.py](custom_components/apartment_lights_engine/rooms.py)
 - each room mapping may also define an optional shutter/cover entity that lets
   `main_off` switch to ambient immediately when the shutter is closed
+- each room mapping may define an optional sleep-mode switch; when it is `on`,
+  automatic paths that would turn on main light use ambient instead
 - service response includes the snapshot and matched decision
 - intended to replace large YAML `choose` automations with thin wrappers
 

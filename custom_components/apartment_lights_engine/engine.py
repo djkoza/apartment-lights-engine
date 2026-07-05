@@ -46,6 +46,25 @@ def _ambient_on(reason: str) -> DecisionResult:
     )
 
 
+def _ambient_on_cancel_restore(reason: str) -> DecisionResult:
+    return DecisionResult(
+        decision="turn_ambient_on",
+        reason=reason,
+        actions=(
+            LightAction.TURN_AMBIENT_ON,
+            LightAction.CANCEL_RESTORE_WINDOW,
+        ),
+    )
+
+
+def _cancel_restore(reason: str) -> DecisionResult:
+    return DecisionResult(
+        decision="cancel_restore_window",
+        reason=reason,
+        actions=(LightAction.CANCEL_RESTORE_WINDOW,),
+    )
+
+
 def _ambient_off(reason: str) -> DecisionResult:
     return DecisionResult(
         decision="turn_ambient_off",
@@ -190,6 +209,10 @@ def decide_light_action(snapshot: DecisionSnapshot) -> DecisionResult:
         and not snapshot.main_on
         and dark
     ):
+        if snapshot.sleep_mode_on:
+            if snapshot.ambient_on:
+                return _cancel_restore("sleep_mode_quick_return_keeps_existing_ambient")
+            return _ambient_on_cancel_restore("sleep_mode_quick_return_uses_ambient")
         return _main_on(
             "quick_return_restores_main",
             cancel_restore=True,
@@ -214,8 +237,10 @@ def decide_light_action(snapshot: DecisionSnapshot) -> DecisionResult:
         and not snapshot.main_on
         and not snapshot.ambient_on
     ):
-        if snapshot.neighbor_main_on:
+        if snapshot.neighbor_main_on and not snapshot.sleep_mode_on:
             return _main_on("dark_room_with_neighbor_main_on")
+        if snapshot.neighbor_main_on:
+            return _ambient_on("sleep_mode_dark_room_uses_ambient_despite_neighbor")
         return _ambient_on("dark_room_without_neighbor_main_on")
 
     if (
@@ -231,12 +256,14 @@ def decide_light_action(snapshot: DecisionSnapshot) -> DecisionResult:
         and not snapshot.main_on
         and not snapshot.ambient_on
     ):
-        if snapshot.neighbor_main_on:
+        if snapshot.neighbor_main_on and not snapshot.sleep_mode_on:
             return DecisionResult(
                 decision="turn_main_on",
                 reason="entry_path_prefers_main_due_to_neighbor",
                 actions=(LightAction.TURN_MAIN_ON,),
             )
+        if snapshot.neighbor_main_on:
+            return _ambient_on("sleep_mode_entry_path_uses_ambient_despite_neighbor")
         return _ambient_on("entry_path_prefers_ambient_without_neighbor")
 
     return _noop("no_rule_matched")

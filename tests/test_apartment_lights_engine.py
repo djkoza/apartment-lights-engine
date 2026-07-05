@@ -137,6 +137,58 @@ class ApartmentLightsEngineTests(unittest.TestCase):
         )
         self.assertEqual(result.actions, (LightAction.TURN_MAIN_ON,))
 
+    def test_sleep_mode_entry_prefers_ambient_even_when_neighbor_main_is_on(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_MOTION_ON,
+                presence_on=True,
+                neighbor_main_on=True,
+                sleep_mode_on=True,
+            )
+        )
+        self.assertEqual(result.actions, (LightAction.TURN_AMBIENT_ON,))
+        self.assertEqual(result.reason, "sleep_mode_entry_path_uses_ambient_despite_neighbor")
+
+    def test_sleep_mode_dark_stable_prefers_ambient_even_when_neighbor_main_is_on(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_LUX_DARK_STABLE,
+                presence_on=True,
+                neighbor_main_on=True,
+                sleep_mode_on=True,
+            )
+        )
+        self.assertEqual(result.actions, (LightAction.TURN_AMBIENT_ON,))
+        self.assertEqual(result.reason, "sleep_mode_dark_room_uses_ambient_despite_neighbor")
+
+    def test_sleep_mode_quick_return_uses_ambient_and_cancels_restore(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_MOTION_ON,
+                presence_on=True,
+                restore_window_active=True,
+                sleep_mode_on=True,
+            )
+        )
+        self.assertEqual(
+            result.actions,
+            (LightAction.TURN_AMBIENT_ON, LightAction.CANCEL_RESTORE_WINDOW),
+        )
+        self.assertEqual(result.reason, "sleep_mode_quick_return_uses_ambient")
+
+    def test_sleep_mode_quick_return_keeps_existing_ambient_and_cancels_restore(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_DOOR_OPEN,
+                presence_on=False,
+                ambient_on=True,
+                restore_window_active=True,
+                sleep_mode_on=True,
+            )
+        )
+        self.assertEqual(result.actions, (LightAction.CANCEL_RESTORE_WINDOW,))
+        self.assertEqual(result.reason, "sleep_mode_quick_return_keeps_existing_ambient")
+
     def test_motion_off_starts_restore_window_only_when_main_was_on(self) -> None:
         result = decide_light_action(snapshot(cause=CAUSE_MOTION_OFF, main_on=True, room_on=True))
         self.assertEqual(
@@ -314,12 +366,13 @@ class ApartmentLightsEngineTests(unittest.TestCase):
             ),
         )
         self.assertIsNone(restored["livingroom"].shutter_entity)
+        self.assertIsNone(restored["livingroom"].sleep_mode_entity)
         self.assertEqual(
             restored["kitchen"].shutter_entity,
             "cover.raspberry_pi_shutter_controller_kitchen_kitchen_shutter",
         )
 
-    def test_room_config_roundtrip_preserves_optional_shutter_entity(self) -> None:
+    def test_room_config_roundtrip_preserves_optional_mode_entities(self) -> None:
         raw = room_configs_to_storage(
             {
                 "bedroom": RoomConfig(
@@ -340,11 +393,16 @@ class ApartmentLightsEngineTests(unittest.TestCase):
                     presence_grace_timer_entity="timer.grace",
                     presence_grace_seconds_entity="input_number.grace",
                     shutter_entity="cover.bedroom_shutter",
+                    sleep_mode_entity="input_boolean.bedroom_sleep_mode",
                 )
             }
         )
         restored = room_configs_from_storage(raw)
         self.assertEqual(restored["bedroom"].shutter_entity, "cover.bedroom_shutter")
+        self.assertEqual(
+            restored["bedroom"].sleep_mode_entity,
+            "input_boolean.bedroom_sleep_mode",
+        )
 
     def test_room_configs_from_empty_storage(self) -> None:
         self.assertEqual(room_configs_from_storage(None), {})

@@ -36,13 +36,13 @@ Included:
 - quick return after no-presence off
 - no-presence room off inside the engine
 - presence grace window when a room turns on without confirmed occupancy
+- optional sleep mode override for automatic main-on decisions
 
 Not included in v2:
 
-- `sleep_mode`
 - room-specific scene logic outside the light decision itself
 
-Those remain separate concerns for now.
+Room-specific scene logic remains a separate concern for now.
 
 ## Snapshot Inputs
 Each decision is based on:
@@ -61,6 +61,7 @@ Each decision is based on:
 - `seconds_since_main_off`
 - `main_off_window_seconds`
 - `shutter_closed` optional
+- `sleep_mode_on` optional
 - `cause`
 
 ## Rule Priority
@@ -75,10 +76,13 @@ The engine evaluates rules in this exact order.
    or turns on ambient immediately when an optional configured shutter is closed
 7. `presence_grace_finished` turns room off if presence never arrived
 8. `ambient_on + bright` turns ambient off
-9. `restore_window_active + motion_on/door_open + dark` restores `main`
+9. `restore_window_active + motion_on/door_open + dark` restores `main`,
+   or uses `ambient` and clears the restore window when `sleep_mode_on`
 10. `lux_changed` shortly after main-off restores ambient
-11. `lux_dark_stable` or dark `thresholds_changed` chooses `main` vs `ambient`
-12. dark `motion_on/door_open/auto_toggle/thresholds_changed` chooses `main` vs `ambient` only if both are currently off
+11. `lux_dark_stable` or dark `thresholds_changed` chooses `main` vs `ambient`,
+    with `sleep_mode_on` forcing `ambient` when the rule would choose `main`
+12. dark `motion_on/door_open/auto_toggle/thresholds_changed` chooses `main` vs `ambient` only if both are currently off,
+    with `sleep_mode_on` forcing `ambient` when the rule would choose `main`
 13. otherwise `noop`
 
 ## Decision Table
@@ -94,12 +98,18 @@ The engine evaluates rules in this exact order.
 | `presence_grace_finished` | `room_on and not presence_on` | `turn_room_off`, and also `cancel_restore_window` if old restore is still active |
 | `lux_bright_stable` | `ambient_on` | `turn_ambient_off` |
 | `thresholds_changed` | `ambient_on and bright` | `turn_ambient_off` |
-| `motion_on` | `restore_window_active and dark and main_off` | `turn_main_on + cancel_restore_window` |
-| `door_open` | `restore_window_active and dark and main_off` | `turn_main_on + cancel_restore_window` |
+| `motion_on` | `restore_window_active and dark and main_off and not sleep_mode_on` | `turn_main_on + cancel_restore_window` |
+| `door_open` | `restore_window_active and dark and main_off and not sleep_mode_on` | `turn_main_on + cancel_restore_window` |
+| `motion_on` | `restore_window_active and dark and main_off and sleep_mode_on and ambient_off` | `turn_ambient_on + cancel_restore_window` |
+| `door_open` | `restore_window_active and dark and main_off and sleep_mode_on and ambient_off` | `turn_ambient_on + cancel_restore_window` |
+| `motion_on`, `door_open` | `restore_window_active and dark and main_off and sleep_mode_on and ambient_on` | `cancel_restore_window` |
 | `lux_changed` | `presence_on and dark and main_off and ambient_off and recent_main_off` | `turn_ambient_on` |
-| `lux_dark_stable` | `presence_on and dark and main_off and ambient_off` | `turn_main_on` if neighbor main on, else `turn_ambient_on` |
-| `thresholds_changed` | `presence_on and dark and main_off and ambient_off` | `turn_main_on` if neighbor main on, else `turn_ambient_on` |
-| `motion_on`, `door_open`, `auto_toggle` | `dark and room demand present and main_off and ambient_off` | `turn_main_on` if neighbor main on, else `turn_ambient_on` |
+| `lux_dark_stable` | `presence_on and dark and main_off and ambient_off` | `turn_main_on` if neighbor main on and not sleep mode, else `turn_ambient_on` |
+| `thresholds_changed` | `presence_on and dark and main_off and ambient_off` | `turn_main_on` if neighbor main on and not sleep mode, else `turn_ambient_on` |
+| `motion_on`, `door_open`, `auto_toggle` | `dark and room demand present and main_off and ambient_off` | `turn_main_on` if neighbor main on and not sleep mode, else `turn_ambient_on` |
+
+When `sleep_mode_on` is active, automatic rules that would choose `turn_main_on`
+instead choose `turn_ambient_on`. Manual `main_on` sync remains unchanged.
 
 ## 2026-04-05 Regression Note
 The first salon cutover exposed a concrete bug:
