@@ -42,6 +42,13 @@
           "room": "Room"
         }
       },
+      "room_mode": {
+        "title": "Room mode",
+        "description": "Choose how {room_id} decides whether it is dark.",
+        "data": {
+          "always_dark": "Always dark"
+        }
+      },
       "room_details": {
         "title": "Room mapping",
         "description": "Configure all entity mappings for {room_id}.",

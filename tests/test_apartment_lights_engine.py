@@ -17,6 +17,9 @@ from custom_components.apartment_lights_engine.const import (
     CAUSE_PRESENCE_GRACE_FINISHED,
     CAUSE_ROOM_ON,
     CAUSE_THRESHOLDS_CHANGED,
+    CONF_ALWAYS_DARK,
+    CONF_LUX_ENTITY,
+    CONF_NEIGHBOR_MAIN_ENTITIES,
 )
 from custom_components.apartment_lights_engine.engine import decide_light_action
 from custom_components.apartment_lights_engine.model import DecisionSnapshot, LightAction
@@ -189,6 +192,68 @@ class ApartmentLightsEngineTests(unittest.TestCase):
         self.assertEqual(result.actions, (LightAction.CANCEL_RESTORE_WINDOW,))
         self.assertEqual(result.reason, "sleep_mode_quick_return_keeps_existing_ambient")
 
+    def test_always_dark_entry_turns_on_main_and_ambient_without_neighbor(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_MOTION_ON,
+                presence_on=True,
+                always_dark=True,
+                neighbor_main_on=False,
+            )
+        )
+        self.assertEqual(
+            result.actions,
+            (LightAction.TURN_MAIN_ON, LightAction.TURN_AMBIENT_ON),
+        )
+        self.assertEqual(result.reason, "always_dark_turns_on_main_and_ambient")
+
+    def test_always_dark_entry_ignores_neighbor_main(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_DOOR_OPEN,
+                presence_on=False,
+                always_dark=True,
+                neighbor_main_on=True,
+            )
+        )
+        self.assertEqual(
+            result.actions,
+            (LightAction.TURN_MAIN_ON, LightAction.TURN_AMBIENT_ON),
+        )
+        self.assertEqual(result.reason, "always_dark_turns_on_main_and_ambient")
+
+    def test_sleep_mode_always_dark_entry_uses_only_ambient(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_MOTION_ON,
+                presence_on=True,
+                always_dark=True,
+                sleep_mode_on=True,
+                neighbor_main_on=True,
+            )
+        )
+        self.assertEqual(result.actions, (LightAction.TURN_AMBIENT_ON,))
+        self.assertEqual(result.reason, "sleep_mode_always_dark_uses_ambient")
+
+    def test_always_dark_quick_return_uses_main_ambient_and_cancels_restore(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_MOTION_ON,
+                presence_on=True,
+                always_dark=True,
+                restore_window_active=True,
+            )
+        )
+        self.assertEqual(
+            result.actions,
+            (
+                LightAction.TURN_MAIN_ON,
+                LightAction.TURN_AMBIENT_ON,
+                LightAction.CANCEL_RESTORE_WINDOW,
+            ),
+        )
+        self.assertEqual(result.reason, "always_dark_quick_return_turns_on_main_and_ambient")
+
     def test_motion_off_starts_restore_window_only_when_main_was_on(self) -> None:
         result = decide_light_action(snapshot(cause=CAUSE_MOTION_OFF, main_on=True, room_on=True))
         self.assertEqual(
@@ -338,6 +403,20 @@ class ApartmentLightsEngineTests(unittest.TestCase):
         self.assertEqual(result.actions, ())
         self.assertEqual(result.reason, "invalid_threshold_order")
 
+    def test_always_dark_ignores_lux_threshold_order(self) -> None:
+        result = decide_light_action(
+            snapshot(
+                cause=CAUSE_MOTION_ON,
+                lux_on_threshold=120.0,
+                lux_off_threshold=80.0,
+                always_dark=True,
+            )
+        )
+        self.assertEqual(
+            result.actions,
+            (LightAction.TURN_MAIN_ON, LightAction.TURN_AMBIENT_ON),
+        )
+
     def test_room_configs_roundtrip_storage(self) -> None:
         raw = room_configs_to_storage(LEGACY_DEFAULT_ROOM_CONFIGS)
         restored = room_configs_from_storage(raw)
@@ -367,6 +446,7 @@ class ApartmentLightsEngineTests(unittest.TestCase):
         )
         self.assertIsNone(restored["livingroom"].shutter_entity)
         self.assertIsNone(restored["livingroom"].sleep_mode_entity)
+        self.assertFalse(restored["livingroom"].always_dark)
         self.assertEqual(
             restored["kitchen"].shutter_entity,
             "cover.raspberry_pi_shutter_controller_kitchen_kitchen_shutter",
@@ -403,6 +483,39 @@ class ApartmentLightsEngineTests(unittest.TestCase):
             restored["bedroom"].sleep_mode_entity,
             "input_boolean.bedroom_sleep_mode",
         )
+
+    def test_always_dark_room_config_roundtrip_omits_lux_and_neighbors(self) -> None:
+        raw = room_configs_to_storage(
+            {
+                "bathroom": RoomConfig(
+                    room="bathroom",
+                    auto_enabled_entity="input_boolean.auto_lights_bathroom",
+                    presence_entity="binary_sensor.bathroom_motion_presence",
+                    door_entity=None,
+                    lux_entity=None,
+                    lux_on_threshold_entity=None,
+                    lux_off_threshold_entity=None,
+                    main_state_entity="light.main",
+                    main_action_entities=("light.main",),
+                    ambient_entity="light.ambient",
+                    room_off_entity="light.room",
+                    neighbor_main_entities=(),
+                    restore_timer_entity="timer.restore",
+                    restore_minutes_entity="input_number.restore",
+                    presence_grace_timer_entity="timer.grace",
+                    presence_grace_seconds_entity="input_number.grace",
+                    always_dark=True,
+                )
+            }
+        )
+        self.assertTrue(raw["bathroom"][CONF_ALWAYS_DARK])
+        self.assertNotIn(CONF_LUX_ENTITY, raw["bathroom"])
+        self.assertNotIn(CONF_NEIGHBOR_MAIN_ENTITIES, raw["bathroom"])
+
+        restored = room_configs_from_storage(raw)
+        self.assertTrue(restored["bathroom"].always_dark)
+        self.assertIsNone(restored["bathroom"].lux_entity)
+        self.assertEqual(restored["bathroom"].neighbor_main_entities, ())
 
     def test_room_configs_from_empty_storage(self) -> None:
         self.assertEqual(room_configs_from_storage(None), {})

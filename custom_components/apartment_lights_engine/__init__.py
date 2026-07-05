@@ -194,32 +194,47 @@ def _build_snapshot(hass: HomeAssistant, room: RoomConfig, cause: str) -> Decisi
         cause=cause,
         auto_enabled=_is_on(hass, room.auto_enabled_entity),
         presence_on=_is_on(hass, room.presence_entity),
-        lux=_float_state(hass, room.lux_entity, default=999.0),
+        lux=_float_state(
+            hass,
+            room.lux_entity,
+            default=0.0 if room.always_dark else 999.0,
+        ),
         lux_on_threshold=_float_state(hass, room.lux_on_threshold_entity, default=80.0),
         lux_off_threshold=_float_state(hass, room.lux_off_threshold_entity, default=120.0),
         main_on=_is_on(hass, room.main_state_entity),
         ambient_on=_is_on(hass, room.ambient_entity),
         room_on=_is_on(hass, room.room_off_entity),
-        neighbor_main_on=any(_is_on(hass, entity_id) for entity_id in room.neighbor_main_entities),
+        neighbor_main_on=(
+            False
+            if room.always_dark
+            else any(_is_on(hass, entity_id) for entity_id in room.neighbor_main_entities)
+        ),
         restore_window_active=_state(hass, room.restore_timer_entity) == "active",
         presence_grace_window_active=_state(hass, room.presence_grace_timer_entity) == "active",
         seconds_since_main_off=seconds_since_main_off,
         main_off_window_seconds=room.main_off_window_seconds,
-        shutter_closed=room.shutter_entity is not None and _state(hass, room.shutter_entity) == "closed",
+        always_dark=room.always_dark,
+        shutter_closed=(
+            room.shutter_entity is not None and _state(hass, room.shutter_entity) == "closed"
+        ),
         sleep_mode_on=room.sleep_mode_entity is not None and _is_on(hass, room.sleep_mode_entity),
     )
 
 
-def _state(hass: HomeAssistant, entity_id: str) -> str:
+def _state(hass: HomeAssistant, entity_id: str | None) -> str:
+    if not entity_id:
+        return "unknown"
     state = hass.states.get(entity_id)
     return state.state if state is not None else "unknown"
 
 
-def _is_on(hass: HomeAssistant, entity_id: str) -> bool:
+def _is_on(hass: HomeAssistant, entity_id: str | None) -> bool:
     return _state(hass, entity_id) == "on"
 
 
-def _float_state(hass: HomeAssistant, entity_id: str, *, default: float) -> float:
+def _float_state(hass: HomeAssistant, entity_id: str | None, *, default: float) -> float:
+    if not entity_id:
+        return default
     state = hass.states.get(entity_id)
     if state is None:
         return default

@@ -42,6 +42,13 @@
           "room": "Pomieszczenie"
         }
       },
+      "room_mode": {
+        "title": "Tryb pomieszczenia",
+        "description": "Wybierz, jak {room_id} rozpoznaje ciemność.",
+        "data": {
+          "always_dark": "Zawsze ciemno"
+        }
+      },
       "room_details": {
         "title": "Mapowanie pomieszczenia",
         "description": "Skonfiguruj wszystkie encje dla {room_id}.",

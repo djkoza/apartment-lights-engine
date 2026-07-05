@@ -11,6 +11,7 @@ ATTR_CAUSE = "cause"
 ATTR_DRY_RUN = "dry_run"
 
 CONF_ROOMS = "rooms"
+CONF_ALWAYS_DARK = "always_dark"
 CONF_AUTO_ENABLED_ENTITY = "auto_enabled_entity"
 CONF_PRESENCE_ENTITY = "presence_entity"
 CONF_DOOR_ENTITY = "door_entity"

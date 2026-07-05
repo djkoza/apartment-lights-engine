@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from .const import (
+    CONF_ALWAYS_DARK,
     CONF_AMBIENT_ENTITY,
     CONF_AUTO_ENABLED_ENTITY,
     CONF_DOOR_ENTITY,
@@ -35,9 +36,9 @@ class RoomConfig:
     auto_enabled_entity: str
     presence_entity: str
     door_entity: str | None
-    lux_entity: str
-    lux_on_threshold_entity: str
-    lux_off_threshold_entity: str
+    lux_entity: str | None
+    lux_on_threshold_entity: str | None
+    lux_off_threshold_entity: str | None
     main_state_entity: str
     main_action_entities: tuple[str, ...]
     ambient_entity: str
@@ -48,6 +49,7 @@ class RoomConfig:
     presence_grace_timer_entity: str
     presence_grace_seconds_entity: str
     main_off_window_seconds: float = 15.0
+    always_dark: bool = False
     shutter_entity: str | None = None
     sleep_mode_entity: str | None = None
 
@@ -74,6 +76,11 @@ def room_config_to_dict(room: RoomConfig) -> dict[str, Any]:
     data = asdict(room)
     data[CONF_MAIN_ACTION_ENTITIES] = list(room.main_action_entities)
     data[CONF_NEIGHBOR_MAIN_ENTITIES] = list(room.neighbor_main_entities)
+    if room.always_dark:
+        data.pop(CONF_LUX_ENTITY, None)
+        data.pop(CONF_LUX_ON_THRESHOLD_ENTITY, None)
+        data.pop(CONF_LUX_OFF_THRESHOLD_ENTITY, None)
+        data.pop(CONF_NEIGHBOR_MAIN_ENTITIES, None)
     return data
 
 
@@ -84,9 +91,9 @@ def room_config_from_dict(room_id: str, raw: dict[str, Any]) -> RoomConfig:
         auto_enabled_entity=raw[CONF_AUTO_ENABLED_ENTITY],
         presence_entity=raw[CONF_PRESENCE_ENTITY],
         door_entity=raw.get(CONF_DOOR_ENTITY) or None,
-        lux_entity=raw[CONF_LUX_ENTITY],
-        lux_on_threshold_entity=raw[CONF_LUX_ON_THRESHOLD_ENTITY],
-        lux_off_threshold_entity=raw[CONF_LUX_OFF_THRESHOLD_ENTITY],
+        lux_entity=raw.get(CONF_LUX_ENTITY) or None,
+        lux_on_threshold_entity=raw.get(CONF_LUX_ON_THRESHOLD_ENTITY) or None,
+        lux_off_threshold_entity=raw.get(CONF_LUX_OFF_THRESHOLD_ENTITY) or None,
         main_state_entity=raw[CONF_MAIN_STATE_ENTITY],
         main_action_entities=tuple(raw.get(CONF_MAIN_ACTION_ENTITIES, [])),
         ambient_entity=raw[CONF_AMBIENT_ENTITY],
@@ -97,6 +104,7 @@ def room_config_from_dict(room_id: str, raw: dict[str, Any]) -> RoomConfig:
         presence_grace_timer_entity=raw[CONF_PRESENCE_GRACE_TIMER_ENTITY],
         presence_grace_seconds_entity=raw[CONF_PRESENCE_GRACE_SECONDS_ENTITY],
         main_off_window_seconds=float(raw.get(CONF_MAIN_OFF_WINDOW_SECONDS, 15.0)),
+        always_dark=bool(raw.get(CONF_ALWAYS_DARK, False)),
         shutter_entity=raw.get(CONF_SHUTTER_ENTITY) or None,
         sleep_mode_entity=raw.get(CONF_SLEEP_MODE_ENTITY) or None,
     )

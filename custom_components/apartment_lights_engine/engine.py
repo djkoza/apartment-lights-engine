@@ -57,6 +57,17 @@ def _ambient_on_cancel_restore(reason: str) -> DecisionResult:
     )
 
 
+def _main_and_ambient_on(reason: str, *, cancel_restore: bool = False) -> DecisionResult:
+    actions = [LightAction.TURN_MAIN_ON, LightAction.TURN_AMBIENT_ON]
+    if cancel_restore:
+        actions.append(LightAction.CANCEL_RESTORE_WINDOW)
+    return DecisionResult(
+        decision="turn_main_and_ambient_on",
+        reason=reason,
+        actions=tuple(actions),
+    )
+
+
 def _cancel_restore(reason: str) -> DecisionResult:
     return DecisionResult(
         decision="cancel_restore_window",
@@ -122,11 +133,11 @@ def _cancel_presence_grace(reason: str, *, cancel_restore: bool = False) -> Deci
 def decide_light_action(snapshot: DecisionSnapshot) -> DecisionResult:
     """Return one deterministic decision for a single trigger cause."""
 
-    if snapshot.lux_on_threshold >= snapshot.lux_off_threshold:
+    if not snapshot.always_dark and snapshot.lux_on_threshold >= snapshot.lux_off_threshold:
         return _noop("invalid_threshold_order")
 
-    dark = snapshot.lux < snapshot.lux_on_threshold
-    bright = snapshot.lux > snapshot.lux_off_threshold
+    dark = snapshot.always_dark or snapshot.lux < snapshot.lux_on_threshold
+    bright = not snapshot.always_dark and snapshot.lux > snapshot.lux_off_threshold
     main_recently_off = (
         not snapshot.main_on
         and snapshot.seconds_since_main_off <= snapshot.main_off_window_seconds
@@ -213,6 +224,11 @@ def decide_light_action(snapshot: DecisionSnapshot) -> DecisionResult:
             if snapshot.ambient_on:
                 return _cancel_restore("sleep_mode_quick_return_keeps_existing_ambient")
             return _ambient_on_cancel_restore("sleep_mode_quick_return_uses_ambient")
+        if snapshot.always_dark:
+            return _main_and_ambient_on(
+                "always_dark_quick_return_turns_on_main_and_ambient",
+                cancel_restore=True,
+            )
         return _main_on(
             "quick_return_restores_main",
             cancel_restore=True,
@@ -237,6 +253,10 @@ def decide_light_action(snapshot: DecisionSnapshot) -> DecisionResult:
         and not snapshot.main_on
         and not snapshot.ambient_on
     ):
+        if snapshot.always_dark:
+            if snapshot.sleep_mode_on:
+                return _ambient_on("sleep_mode_always_dark_uses_ambient")
+            return _main_and_ambient_on("always_dark_turns_on_main_and_ambient")
         if snapshot.neighbor_main_on and not snapshot.sleep_mode_on:
             return _main_on("dark_room_with_neighbor_main_on")
         if snapshot.neighbor_main_on:
@@ -256,6 +276,10 @@ def decide_light_action(snapshot: DecisionSnapshot) -> DecisionResult:
         and not snapshot.main_on
         and not snapshot.ambient_on
     ):
+        if snapshot.always_dark:
+            if snapshot.sleep_mode_on:
+                return _ambient_on("sleep_mode_always_dark_uses_ambient")
+            return _main_and_ambient_on("always_dark_turns_on_main_and_ambient")
         if snapshot.neighbor_main_on and not snapshot.sleep_mode_on:
             return DecisionResult(
                 decision="turn_main_on",

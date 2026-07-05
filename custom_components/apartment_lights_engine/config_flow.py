@@ -11,6 +11,7 @@ from homeassistant.util import slugify
 
 from .const import (
     ATTR_ROOM,
+    CONF_ALWAYS_DARK,
     CONF_AMBIENT_ENTITY,
     CONF_AUTO_ENABLED_ENTITY,
     CONF_DOOR_ENTITY,
@@ -33,7 +34,7 @@ from .const import (
     DOMAIN,
 )
 from .rooms import overlapping_main_and_ambient_entities
- 
+
 
 ROOM_ID = "room_id"
 ACTION_ADD_ROOM = "add_room"
@@ -48,7 +49,11 @@ def _rooms_from_entry(entry: config_entries.ConfigEntry) -> dict[str, dict[str, 
     return dict(raw)
 
 
-def _room_schema(current: dict[str, Any] | None = None) -> vol.Schema:
+def _room_schema(
+    current: dict[str, Any] | None = None,
+    *,
+    always_dark: bool = False,
+) -> vol.Schema:
     """Build one room form schema."""
     current = current or {}
     entity = selector.EntitySelector
@@ -65,38 +70,47 @@ def _room_schema(current: dict[str, Any] | None = None) -> vol.Schema:
             CONF_SLEEP_MODE_ENTITY,
             default=current[CONF_SLEEP_MODE_ENTITY],
         )
-    return vol.Schema(
+    schema_fields: dict[Any, Any] = {
+        vol.Required(
+            CONF_AUTO_ENABLED_ENTITY,
+            default=current.get(CONF_AUTO_ENABLED_ENTITY, vol.UNDEFINED),
+        ): entity(entity_cfg(domain="input_boolean")),
+        vol.Required(
+            CONF_PRESENCE_ENTITY,
+            default=current.get(CONF_PRESENCE_ENTITY, vol.UNDEFINED),
+        ): entity(
+            entity_cfg(
+                domain="binary_sensor",
+                device_class=["motion", "occupancy", "presence"],
+            )
+        ),
+        door_key: entity(entity_cfg(domain="binary_sensor")),
+        shutter_key: entity(entity_cfg(domain="cover")),
+        sleep_mode_key: entity(
+            entity_cfg(domain=["binary_sensor", "input_boolean", "switch"])
+        ),
+    }
+
+    if not always_dark:
+        schema_fields.update(
+            {
+                vol.Required(
+                    CONF_LUX_ENTITY,
+                    default=current.get(CONF_LUX_ENTITY, vol.UNDEFINED),
+                ): entity(entity_cfg(domain="sensor")),
+                vol.Required(
+                    CONF_LUX_ON_THRESHOLD_ENTITY,
+                    default=current.get(CONF_LUX_ON_THRESHOLD_ENTITY, vol.UNDEFINED),
+                ): entity(entity_cfg(domain="input_number")),
+                vol.Required(
+                    CONF_LUX_OFF_THRESHOLD_ENTITY,
+                    default=current.get(CONF_LUX_OFF_THRESHOLD_ENTITY, vol.UNDEFINED),
+                ): entity(entity_cfg(domain="input_number")),
+            }
+        )
+
+    schema_fields.update(
         {
-            vol.Required(
-                CONF_AUTO_ENABLED_ENTITY,
-                default=current.get(CONF_AUTO_ENABLED_ENTITY, vol.UNDEFINED),
-            ): entity(entity_cfg(domain="input_boolean")),
-            vol.Required(
-                CONF_PRESENCE_ENTITY,
-                default=current.get(CONF_PRESENCE_ENTITY, vol.UNDEFINED),
-            ): entity(
-                entity_cfg(
-                    domain="binary_sensor",
-                    device_class=["motion", "occupancy", "presence"],
-                )
-            ),
-            door_key: entity(entity_cfg(domain="binary_sensor")),
-            shutter_key: entity(entity_cfg(domain="cover")),
-            sleep_mode_key: entity(
-                entity_cfg(domain=["binary_sensor", "input_boolean", "switch"])
-            ),
-            vol.Required(
-                CONF_LUX_ENTITY,
-                default=current.get(CONF_LUX_ENTITY, vol.UNDEFINED),
-            ): entity(entity_cfg(domain="sensor")),
-            vol.Required(
-                CONF_LUX_ON_THRESHOLD_ENTITY,
-                default=current.get(CONF_LUX_ON_THRESHOLD_ENTITY, vol.UNDEFINED),
-            ): entity(entity_cfg(domain="input_number")),
-            vol.Required(
-                CONF_LUX_OFF_THRESHOLD_ENTITY,
-                default=current.get(CONF_LUX_OFF_THRESHOLD_ENTITY, vol.UNDEFINED),
-            ): entity(entity_cfg(domain="input_number")),
             vol.Required(
                 CONF_MAIN_STATE_ENTITY,
                 default=current.get(CONF_MAIN_STATE_ENTITY, vol.UNDEFINED),
@@ -104,9 +118,7 @@ def _room_schema(current: dict[str, Any] | None = None) -> vol.Schema:
             vol.Required(
                 CONF_MAIN_ACTION_ENTITIES,
                 default=current.get(CONF_MAIN_ACTION_ENTITIES, []),
-            ): entity(
-                entity_cfg(domain="light", multiple=True)
-            ),
+            ): entity(entity_cfg(domain="light", multiple=True)),
             vol.Required(
                 CONF_AMBIENT_ENTITY,
                 default=current.get(CONF_AMBIENT_ENTITY, vol.UNDEFINED),
@@ -115,12 +127,19 @@ def _room_schema(current: dict[str, Any] | None = None) -> vol.Schema:
                 CONF_ROOM_OFF_ENTITY,
                 default=current.get(CONF_ROOM_OFF_ENTITY, vol.UNDEFINED),
             ): entity(entity_cfg(domain="light")),
+        }
+    )
+
+    if not always_dark:
+        schema_fields[
             vol.Required(
                 CONF_NEIGHBOR_MAIN_ENTITIES,
                 default=current.get(CONF_NEIGHBOR_MAIN_ENTITIES, []),
-            ): entity(
-                entity_cfg(domain="light", multiple=True)
-            ),
+            )
+        ] = entity(entity_cfg(domain="light", multiple=True))
+
+    schema_fields.update(
+        {
             vol.Required(
                 CONF_RESTORE_TIMER_ENTITY,
                 default=current.get(CONF_RESTORE_TIMER_ENTITY, vol.UNDEFINED),
@@ -136,9 +155,7 @@ def _room_schema(current: dict[str, Any] | None = None) -> vol.Schema:
             vol.Required(
                 CONF_PRESENCE_GRACE_SECONDS_ENTITY,
                 default=current.get(CONF_PRESENCE_GRACE_SECONDS_ENTITY, vol.UNDEFINED),
-            ): entity(
-                entity_cfg(domain="input_number")
-            ),
+            ): entity(entity_cfg(domain="input_number")),
             vol.Required(
                 CONF_MAIN_OFF_WINDOW_SECONDS,
                 default=current.get(CONF_MAIN_OFF_WINDOW_SECONDS, 15.0),
@@ -152,6 +169,8 @@ def _room_schema(current: dict[str, Any] | None = None) -> vol.Schema:
             ),
         }
     )
+
+    return vol.Schema(schema_fields)
 
 
 def _entity_members(hass, entity_id: str) -> tuple[str, ...]:
@@ -194,6 +213,7 @@ class ApartmentLightsEngineOptionsFlow(config_entries.OptionsFlow):
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         self._rooms = _rooms_from_entry(config_entry)
         self._room_id: str | None = None
+        self._always_dark: bool | None = None
 
     async def async_step_init(self, user_input=None):
         """Show room management menu."""
@@ -224,7 +244,8 @@ class ApartmentLightsEngineOptionsFlow(config_entries.OptionsFlow):
                 errors[ROOM_ID] = "room_already_exists"
             else:
                 self._room_id = room_id
-                return await self.async_step_room_details()
+                self._always_dark = False
+                return await self.async_step_room_mode()
 
         schema = vol.Schema(
             {
@@ -246,7 +267,8 @@ class ApartmentLightsEngineOptionsFlow(config_entries.OptionsFlow):
 
         if user_input is not None:
             self._room_id = user_input[ATTR_ROOM]
-            return await self.async_step_room_details()
+            self._always_dark = None
+            return await self.async_step_room_mode()
 
         schema = vol.Schema(
             {
@@ -282,13 +304,48 @@ class ApartmentLightsEngineOptionsFlow(config_entries.OptionsFlow):
         )
         return self.async_show_form(step_id="remove_room", data_schema=schema)
 
+    def _current_room(self) -> dict[str, Any]:
+        """Return the selected room's current raw config."""
+        if self._room_id is None:
+            return {}
+        return dict(self._rooms.get(self._room_id, {}))
+
+    def _selected_always_dark(self) -> bool:
+        """Return the selected always-dark mode for this edit flow."""
+        if self._always_dark is not None:
+            return self._always_dark
+        return bool(self._current_room().get(CONF_ALWAYS_DARK, False))
+
+    async def async_step_room_mode(self, user_input=None):
+        """Choose whether this room uses lux-based or always-dark decisions."""
+        if user_input is not None:
+            self._always_dark = bool(user_input[CONF_ALWAYS_DARK])
+            return await self.async_step_room_details()
+
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_ALWAYS_DARK,
+                    default=self._selected_always_dark(),
+                ): selector.BooleanSelector()
+            }
+        )
+        return self.async_show_form(
+            step_id="room_mode",
+            data_schema=schema,
+            description_placeholders={"room_id": self._room_id or ""},
+        )
+
     async def async_step_room_details(self, user_input=None):
         """Create or edit one room mapping."""
         errors: dict[str, str] = {}
+        always_dark = self._selected_always_dark()
         if user_input is not None:
             if not user_input.get(CONF_MAIN_ACTION_ENTITIES):
                 errors[CONF_MAIN_ACTION_ENTITIES] = "required"
-            if not user_input.get(CONF_NEIGHBOR_MAIN_ENTITIES):
+            if always_dark:
+                user_input[CONF_NEIGHBOR_MAIN_ENTITIES] = []
+            elif not user_input.get(CONF_NEIGHBOR_MAIN_ENTITIES):
                 # Empty neighbor list is valid. Normalize below.
                 user_input[CONF_NEIGHBOR_MAIN_ENTITIES] = []
 
@@ -302,20 +359,27 @@ class ApartmentLightsEngineOptionsFlow(config_entries.OptionsFlow):
 
             if not errors and self._room_id is not None:
                 cleaned = dict(user_input)
-                cleaned[CONF_MAIN_ACTION_ENTITIES] = list(cleaned.get(CONF_MAIN_ACTION_ENTITIES, []))
-                cleaned[CONF_NEIGHBOR_MAIN_ENTITIES] = list(
-                    cleaned.get(CONF_NEIGHBOR_MAIN_ENTITIES, [])
+                cleaned[CONF_ALWAYS_DARK] = always_dark
+                cleaned[CONF_MAIN_ACTION_ENTITIES] = list(
+                    cleaned.get(CONF_MAIN_ACTION_ENTITIES, [])
                 )
+                if always_dark:
+                    cleaned.pop(CONF_LUX_ENTITY, None)
+                    cleaned.pop(CONF_LUX_ON_THRESHOLD_ENTITY, None)
+                    cleaned.pop(CONF_LUX_OFF_THRESHOLD_ENTITY, None)
+                    cleaned.pop(CONF_NEIGHBOR_MAIN_ENTITIES, None)
+                else:
+                    cleaned[CONF_NEIGHBOR_MAIN_ENTITIES] = list(
+                        cleaned.get(CONF_NEIGHBOR_MAIN_ENTITIES, [])
+                    )
                 self._rooms[self._room_id] = cleaned
                 return self.async_create_entry(title="", data={CONF_ROOMS: self._rooms})
 
-        current = {}
-        if self._room_id is not None:
-            current = dict(self._rooms.get(self._room_id, {}))
+        current = self._current_room()
 
         return self.async_show_form(
             step_id="room_details",
-            data_schema=_room_schema(current),
+            data_schema=_room_schema(current, always_dark=always_dark),
             errors=errors,
             description_placeholders={"room_id": self._room_id or ""},
         )

@@ -17,6 +17,8 @@ Current scope:
   `main_off` switch to ambient immediately when the shutter is closed
 - each room mapping may define an optional sleep-mode switch; when it is `on`,
   automatic paths that would turn on main light use ambient instead
+- each room may be marked as always dark; then lux and neighbor-main mappings
+  are not used, and automatic entry turns on main plus ambient
 - service response includes the snapshot and matched decision
 - intended to replace large YAML `choose` automations with thin wrappers
 

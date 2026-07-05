@@ -38,6 +38,7 @@ class DecisionSnapshot:
     presence_grace_window_active: bool
     seconds_since_main_off: float
     main_off_window_seconds: float
+    always_dark: bool = False
     shutter_closed: bool = False
     sleep_mode_on: bool = False
 
